@@ -3,97 +3,110 @@ import type { Variants, Transition } from 'framer-motion';
 // Spring config for the device unfold — main panels
 export const unfoldSpring: Transition = {
   type: 'spring',
-  stiffness: 80,
-  damping: 15,
+  stiffness: 85,
+  damping: 18,
   mass: 1,
 };
 
-// Spring for the left panel (slightly delayed)
+// Spring for the left panel (staggered delay, deliberate inertia)
 export const leftPanelSpring: Transition = {
   type: 'spring',
-  stiffness: 75,
-  damping: 14,
+  stiffness: 85,
+  damping: 18,
   mass: 1,
-  delay: 0.05,
+  delay: 0.08,
 };
 
-// Spring for the right panel (slightly more delayed)
+// Spring for the right panel (slightly more delayed, sitting deeper)
 export const rightPanelSpring: Transition = {
   type: 'spring',
-  stiffness: 70,
-  damping: 14,
+  stiffness: 80,
+  damping: 18,
   mass: 1,
-  delay: 0.1,
+  delay: 0.16,
 };
 
-// Device shell variants
+// Device shell variants with spatial Z-elevation
 export const deviceShellVariants: Variants = {
   idle: {
     scale: 1,
-    boxShadow: '0 0 0 rgba(232, 93, 74, 0), 0 25px 60px rgba(0, 0, 0, 0.5)',
+    z: 0,
+    boxShadow: '0 1px 0 rgba(255, 255, 255, 0.06), 0 20px 48px rgba(0, 0, 0, 0.6)',
   },
   power: {
     scale: 1,
-    boxShadow: '0 0 30px rgba(232, 93, 74, 0.08), 0 25px 60px rgba(0, 0, 0, 0.5)',
+    z: 4,
+    boxShadow: '0 0 24px rgba(229, 72, 77, 0.06), 0 24px 54px rgba(0, 0, 0, 0.65)',
   },
   scan: {
     scale: 1,
-    boxShadow: '0 0 40px rgba(232, 93, 74, 0.12), 0 25px 60px rgba(0, 0, 0, 0.5)',
+    z: 8,
+    boxShadow: '0 0 32px rgba(229, 72, 77, 0.08), 0 26px 60px rgba(0, 0, 0, 0.7)',
   },
   identify: {
-    scale: 1.02,
-    boxShadow: '0 0 60px rgba(232, 93, 74, 0.2), 0 25px 60px rgba(0, 0, 0, 0.5)',
+    scale: 1.015,
+    z: 22,
+    boxShadow: '0 0 44px rgba(229, 72, 77, 0.12), 0 30px 68px rgba(0, 0, 0, 0.75)',
   },
   open: {
     scale: 1,
-    boxShadow: '0 0 20px rgba(232, 93, 74, 0.05), 0 25px 60px rgba(0, 0, 0, 0.5)',
+    z: 16,
+    boxShadow: '0 0 16px rgba(229, 72, 77, 0.04), 0 24px 60px rgba(0, 0, 0, 0.65)',
   },
   profile: {
     scale: 1,
-    boxShadow: '0 0 0 rgba(232, 93, 74, 0), 0 20px 50px rgba(0, 0, 0, 0.4)',
+    z: 16,
+    boxShadow: '0 0 0 rgba(229, 72, 77, 0), 0 24px 60px rgba(0, 0, 0, 0.65)',
   },
 };
 
-// Center panel in the tri-panel layout
+// Center panel in the tri-panel layout — primary focal plane
 export const centerPanelVariants: Variants = {
   closed: {
     x: 0,
+    z: 0,
   },
   open: {
     x: 0,
+    z: 16,
+    transition: unfoldSpring,
   },
 };
 
-// Left panel unfold
+// Left panel unfold — emerges from depth and settles angled toward viewer
 export const leftPanelVariants: Variants = {
   closed: {
-    x: 0,
-    rotateY: 0,
+    x: '-20%',
+    z: -50,
+    rotateY: 14,
     opacity: 0,
-    scale: 0.98,
+    scale: 0.95,
   },
   open: {
     x: '-102%',
-    rotateY: 5,
+    z: -14,
+    rotateY: 4,
     opacity: 1,
-    scale: 1,
+    scale: 0.985,
     transition: leftPanelSpring,
   },
 };
 
-// Right panel unfold
+// Right panel unfold — emerges from deeper plane and sits slightly farther back
 export const rightPanelVariants: Variants = {
   closed: {
-    x: 0,
-    rotateY: 0,
+    x: '20%',
+    z: -65,
+    rotateY: -14,
     opacity: 0,
-    scale: 0.98,
+    scale: 0.94,
   },
   open: {
     x: '102%',
-    rotateY: -5,
+    z: -24,
+    rotateY: -4,
     opacity: 1,
-    scale: 1,
+    scale: 0.975,
     transition: rightPanelSpring,
   },
 };
@@ -104,18 +117,18 @@ export const edgeLightVariants: Variants = {
     opacity: 0,
   },
   power: {
-    opacity: [0, 0.6, 0.3],
+    opacity: [0, 0.5, 0.25],
     transition: { duration: 0.8, ease: [0.4, 0, 0.2, 1] },
   },
   scan: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   identify: {
-    opacity: [0.4, 1, 0.5],
+    opacity: [0.35, 0.8, 0.4],
     transition: { duration: 0.6, ease: 'easeOut' },
   },
   open: {
-    opacity: 0.15,
+    opacity: 0.12,
     transition: { duration: 1 },
   },
   profile: {
@@ -142,7 +155,7 @@ export const displayVariants: Variants = {
   },
   identify: {
     opacity: 1,
-    filter: 'brightness(1.1)',
+    filter: 'brightness(1.05)',
     transition: { duration: 0.3 },
   },
   open: {
@@ -163,8 +176,8 @@ export const identityPulseVariants: Variants = {
     opacity: 0,
   },
   visible: {
-    scale: [0, 1.5, 2],
-    opacity: [0, 0.4, 0],
+    scale: [0, 1.4, 1.8],
+    opacity: [0, 0.3, 0],
     transition: {
       duration: 0.8,
       ease: [0.4, 0, 0.2, 1],

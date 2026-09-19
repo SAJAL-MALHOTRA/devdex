@@ -16,7 +16,7 @@ interface Particle {
   opacity: number;
 }
 
-export default function ParticleField({ intensity = 'medium' }: ParticleFieldProps) {
+export default function ParticleField({ intensity = 'low' }: ParticleFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -31,15 +31,15 @@ export default function ParticleField({ intensity = 'medium' }: ParticleFieldPro
 
     const getParticleCount = () => {
       switch (intensity) {
-        case 'low': return 30;
-        case 'high': return 80;
-        case 'medium':
-        default: return 50;
+        case 'high': return 35;
+        case 'medium': return 25;
+        case 'low':
+        default: return 18;
       }
     };
 
-    // Warm gray (#666) and faint coral (#e85d4a)
-    const colors = ['#666666', '#e85d4a'];
+    // Subtle neutral slate
+    const colors = ['#52525b', '#71717a'];
 
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
@@ -56,15 +56,14 @@ export default function ParticleField({ intensity = 'medium' }: ParticleFieldPro
       const count = getParticleCount();
       particles = [];
       for (let i = 0; i < count; i++) {
-        const isCoral = Math.random() > 0.7; // ~30% are coral
         particles.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.15, // Very slow movement
-          vy: (Math.random() - 0.5) * 0.15,
-          radius: Math.random() * 1 + 0.5, // 1-2px diameter
-          color: isCoral ? colors[1] : colors[0],
-          opacity: isCoral ? 0.3 : Math.random() * 0.2 + 0.1, // 0.1 - 0.3
+          vx: (Math.random() - 0.5) * 0.08, // Subtle ambient motion
+          vy: (Math.random() - 0.5) * 0.08,
+          radius: Math.random() * 0.8 + 0.4,
+          color: colors[i % colors.length],
+          opacity: Math.random() * 0.08 + 0.04, // Very soft opacity (0.04 - 0.12)
         });
       }
     };

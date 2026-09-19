@@ -31,29 +31,24 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       <motion.div variants={profileItemVariants} className="flex items-center gap-3.5">
         <motion.div
           variants={scaleInVariants}
-          className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, #1a1a1a 0%, #242424 100%)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-zinc-900 border border-white/[0.08] shadow-sm"
         >
-          <span className="text-sm font-medium text-gray-300 tracking-wide">
+          <span className="text-sm font-medium text-zinc-200">
             {initials}
           </span>
         </motion.div>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-white tracking-[-0.01em] leading-tight">
+          <h1 className="text-base font-semibold text-white tracking-tight leading-tight">
             {profile.name}
           </h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">{profile.role}</p>
+          <p className="text-xs text-zinc-400 mt-0.5">{profile.role}</p>
         </div>
       </motion.div>
 
       {/* Location + Availability */}
-      <motion.div variants={profileItemVariants} className="flex items-center gap-4 flex-wrap">
+      <motion.div variants={profileItemVariants} className="flex items-center gap-3.5 flex-wrap">
         {profile.location && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 text-zinc-400 text-xs">
             <svg
               width="12"
               height="12"
@@ -63,19 +58,20 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-gray-600"
+              className="text-zinc-500"
+              aria-hidden="true"
             >
               <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <span className="text-[11px] text-gray-500">{profile.location}</span>
+            <span>{profile.location}</span>
           </div>
         )}
 
         {profile.availability && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-            <span className="text-[11px] text-emerald-500/80">{profile.availability}</span>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-400/90 font-normal">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>{profile.availability}</span>
           </div>
         )}
       </motion.div>
@@ -83,7 +79,7 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       {/* Bio */}
       {profile.bio && (
         <motion.div variants={profileItemVariants}>
-          <p className="text-[13px] text-gray-500 leading-[1.6] max-w-[280px]">
+          <p className="text-xs text-zinc-300 leading-relaxed max-w-[280px]">
             {profile.bio}
           </p>
         </motion.div>

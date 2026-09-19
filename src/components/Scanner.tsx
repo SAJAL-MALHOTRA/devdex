@@ -10,10 +10,10 @@ interface ScannerProps {
 }
 
 const STATUS_MESSAGES = [
-  'SCANNING DEVELOPER',
-  'READING IDENTITY',
-  'FETCHING PROFILE',
-  'ANALYZING STACK',
+  'Reading identity...',
+  'Fetching profile...',
+  'Analyzing stack...',
+  'Initializing profile...',
 ];
 
 export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
@@ -38,7 +38,8 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
 
   useEffect(() => {
     if (!isActive) {
-      setCurrentMessage(0);
+      const t = setTimeout(() => setCurrentMessage(0), 0);
+      return () => clearTimeout(t);
     }
   }, [isActive]);
 
@@ -60,7 +61,7 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
             cy="80"
             r="72"
             fill="none"
-            stroke="rgba(232, 93, 74, 0.15)"
+            stroke="rgba(229, 72, 77, 0.12)"
             strokeWidth="1"
           />
           <circle
@@ -68,7 +69,7 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
             cy="80"
             r="72"
             fill="none"
-            stroke="#e85d4a"
+            stroke="#e5484d"
             strokeWidth="1.5"
             strokeDasharray="8 12"
             strokeLinecap="round"
@@ -87,7 +88,7 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
             cy="60"
             r="52"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.04)"
+            stroke="rgba(255, 255, 255, 0.05)"
             strokeWidth="0.5"
           />
         </svg>
@@ -98,15 +99,15 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
             {/* QR placeholder — geometric grid */}
             <svg viewBox="0 0 64 64" className="w-full h-full opacity-60">
               {/* Corner markers */}
-              <rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#e85d4a" strokeWidth="1.5" />
-              <rect x="8" y="8" width="8" height="8" rx="1" fill="#e85d4a" opacity="0.4" />
-              <rect x="44" y="4" width="16" height="16" rx="2" fill="none" stroke="#e85d4a" strokeWidth="1.5" />
-              <rect x="48" y="8" width="8" height="8" rx="1" fill="#e85d4a" opacity="0.4" />
-              <rect x="4" y="44" width="16" height="16" rx="2" fill="none" stroke="#e85d4a" strokeWidth="1.5" />
-              <rect x="8" y="48" width="8" height="8" rx="1" fill="#e85d4a" opacity="0.4" />
+              <rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
+              <rect x="8" y="8" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
+              <rect x="44" y="4" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
+              <rect x="48" y="8" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
+              <rect x="4" y="44" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
+              <rect x="8" y="48" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
               {/* Center pattern */}
               <rect x="26" y="26" width="12" height="12" rx="1" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-              <rect x="29" y="29" width="6" height="6" rx="0.5" fill="#e85d4a" opacity="0.3" />
+              <rect x="29" y="29" width="6" height="6" rx="0.5" fill="#e5484d" opacity="0.3" />
               {/* Data dots */}
               <rect x="24" y="8" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.12)" />
               <rect x="30" y="8" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
@@ -130,13 +131,13 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
         {isActive && (
           <>
             <motion.div
-              className="absolute left-1/2 top-0 w-px h-full bg-gradient-to-b from-transparent via-[#e85d4a]/20 to-transparent"
+              className="absolute left-1/2 top-0 w-px h-full bg-gradient-to-b from-transparent via-[#e5484d]/25 to-transparent"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.4 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             />
             <motion.div
-              className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#e85d4a]/20 to-transparent"
+              className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#e5484d]/25 to-transparent"
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.4 }}
               transition={{ duration: 0.5, delay: 0.3 }}
@@ -147,14 +148,14 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
 
       {/* Scan line */}
       <motion.div
-        className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[#e85d4a]/40 to-transparent"
+        className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[#e5484d]/40 to-transparent"
         variants={scanLineVariants}
         animate={isActive ? 'scanning' : 'idle'}
       />
 
       {/* Status text */}
       <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-        <div className="h-4 overflow-hidden">
+        <div className="h-5 overflow-hidden">
           <AnimatePresence mode="wait">
             {isActive && (
               <motion.p
@@ -163,7 +164,7 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
                 initial="enter"
                 animate="visible"
                 exit="exit"
-                className="font-mono text-[10px] tracking-[0.2em] uppercase text-gray-500"
+                className="text-xs font-sans text-zinc-400"
               >
                 {STATUS_MESSAGES[currentMessage]}
               </motion.p>

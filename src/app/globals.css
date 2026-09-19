@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #f5f5f5;
-  --surface: #141414;
-  --surface-light: #1a1a1a;
-  --surface-lighter: #222222;
-  --coral: #e85d4a;
-  --coral-muted: #c4453a;
-  --cyan: #4ac8e8;
-  --text-primary: #f5f5f5;
-  --text-secondary: #999999;
-  --text-tertiary: #666666;
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --surface: #111113;
+  --surface-light: #161618;
+  --surface-lighter: #1e1e22;
+  --coral: #e5484d;
+  --coral-muted: rgba(229, 72, 77, 0.15);
+  --cyan: #e5484d; /* replace cyan with unified accent */
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
 }
 
 @theme inline {
@@ -30,7 +30,7 @@ body {
   overflow-x: hidden;
 }
 
-/* 3D Transform Utilities */
+/* 3D Transform Utilities — Preserved for panel unfold animation */
 .preserve-3d {
   transform-style: preserve-3d;
 }
@@ -43,7 +43,7 @@ body {
   perspective: 800px;
 }
 
-/* Custom scrollbar */
+/* Minimal scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -63,71 +63,52 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(232, 93, 74, 0.3);
-  color: #f5f5f5;
+  background: rgba(229, 72, 77, 0.25);
+  color: #ffffff;
 }
 
-/* LED breathing animation */
+/* Animation keyframes — preserved for device transitions */
 @keyframes led-breathe {
   0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
-/* Edge light sweep */
 @keyframes edge-sweep {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
-/* Scan line */
 @keyframes scan-line {
   0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 0.6; }
-  90% { opacity: 0.6; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
   100% { transform: translateY(100%); opacity: 0; }
 }
 
-/* Waveform bar animation */
 @keyframes waveform-idle {
+  0%, 100% { height: 3px; }
+  50% { height: 6px; }
+}
+
+@keyframes waveform-speaking {
+  0% { height: 3px; }
+  25% { height: var(--max-h, 16px); }
+  50% { height: 6px; }
+  75% { height: var(--mid-h, 12px); }
+  100% { height: 3px; }
+}
+
+@keyframes waveform-listening {
   0%, 100% { height: 4px; }
   50% { height: 8px; }
 }
 
-@keyframes waveform-speaking {
-  0% { height: 4px; }
-  25% { height: var(--max-h, 20px); }
-  50% { height: 8px; }
-  75% { height: var(--mid-h, 14px); }
-  100% { height: 4px; }
-}
-
-@keyframes waveform-listening {
-  0%, 100% { height: 6px; }
-  50% { height: 12px; }
-}
-
-/* Subtle noise texture overlay */
+/* Noise texture overlay — softened to zero/clean */
 .noise-texture::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  border-radius: inherit;
+  content: none;
 }
 
-/* Glass reflection */
+/* Glass reflection — removed fake sheen for clean workstation look */
 .glass-reflection::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.01) 100%
-  );
-  pointer-events: none;
-  border-radius: inherit;
+  content: none;
 }
