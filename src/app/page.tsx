@@ -15,13 +15,13 @@ export default function Home() {
   const bgSpringX = useSpring(mouseX, { stiffness: 50, damping: 20 });
   const bgSpringY = useSpring(mouseY, { stiffness: 50, damping: 20 });
 
-  // Subtle 2-3px background parallax
-  const bgX = useTransform(bgSpringX, [-1, 1], [-3, 3]);
-  const bgY = useTransform(bgSpringY, [-1, 1], [-2, 2]);
+  // Exact 0.10x background parallax (max bounds: ±8px * 0.10 = ±0.8px, ±6px * 0.10 = ±0.6px)
+  const bgX = useTransform(bgSpringX, [-1, 1], [-0.8, 0.8]);
+  const bgY = useTransform(bgSpringY, [-1, 1], [-0.6, 0.6]);
 
-  // Subtle drift for the ambient spotlight
-  const lightX = useTransform(bgSpringX, [-1, 1], [-16, 16]);
-  const lightY = useTransform(bgSpringY, [-1, 1], [-10, 10]);
+  // Subtle drift for the ambient studio spotlight
+  const lightX = useTransform(bgSpringX, [-1, 1], [-8, 8]);
+  const lightY = useTransform(bgSpringY, [-1, 1], [-5, 5]);
 
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -48,8 +48,8 @@ export default function Home() {
   }, [mouseX, mouseY, prefersReducedMotion]);
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#09090b]">
-      {/* Ambient particle field — with subtle 2-3px parallax */}
+    <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#08090B]">
+      {/* Ambient particle field — exact 0.10x depth multiplier */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={prefersReducedMotion ? {} : { x: bgX, y: bgY }}
@@ -64,18 +64,18 @@ export default function Home() {
           prefersReducedMotion
             ? {
                 background:
-                  'radial-gradient(ellipse at 50% 50%, rgba(229, 72, 77, 0.03) 0%, transparent 60%)',
+                  'radial-gradient(ellipse at 50% 50%, rgba(229, 72, 77, 0.02) 0%, transparent 65%)',
               }
             : {
                 x: lightX,
                 y: lightY,
                 background:
-                  'radial-gradient(ellipse at 50% 50%, rgba(229, 72, 77, 0.03) 0%, transparent 60%)',
+                  'radial-gradient(ellipse at 50% 50%, rgba(229, 72, 77, 0.02) 0%, transparent 65%)',
               }
         }
       />
 
-      {/* Device — Three-panel unfolding system */}
+      {/* DevDex Developer Identity Console — Asymmetric 3D System */}
       <div className="relative z-10 w-full max-w-6xl px-4 py-8 flex items-center justify-center">
         <DevDexDevice profile={sampleProfile} />
       </div>

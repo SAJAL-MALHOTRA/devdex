@@ -13,23 +13,24 @@ export default function Projects({ projects }: ProjectsProps) {
   if (!projects || projects.length === 0) return null;
 
   return (
-    <div>
-      <div className="flex justify-between items-baseline mb-3">
-        <h2 className="text-xs font-medium text-zinc-300 font-sans">
-          Featured Projects
+    <div className="pt-2">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[11px] font-mono uppercase tracking-widest text-[#55585F]">
+          Selected Work
         </h2>
-        <span className="text-[11px] text-zinc-500 font-sans">
-          {projects.length} projects
+        <span className="text-[11px] font-mono text-[#55585F]">
+          {projects.length}
         </span>
       </div>
+
       <motion.div
         variants={projectContainerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 gap-2.5"
+        className="divide-y divide-white/[0.04]"
       >
         {projects.map((project, idx) => (
-          <ProjectCard key={idx} project={project} />
+          <ProjectCard key={project.name} project={project} index={idx} />
         ))}
       </motion.div>
     </div>

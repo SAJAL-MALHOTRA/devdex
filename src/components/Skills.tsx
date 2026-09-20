@@ -11,10 +11,11 @@ export default function Skills({ skills }: SkillsProps) {
   if (!skills || skills.length === 0) return null;
 
   return (
-    <div>
-      <h2 className="text-xs font-medium text-zinc-300 font-sans mb-2.5">
-        Technical Skills
+    <div className="pt-2">
+      <h2 className="text-[11px] font-mono uppercase tracking-widest text-[#55585F] mb-2.5">
+        Skills &amp; Technologies
       </h2>
+
       <motion.div
         variants={skillContainerVariants}
         initial="hidden"
@@ -25,7 +26,7 @@ export default function Skills({ skills }: SkillsProps) {
           <motion.span
             key={idx}
             variants={skillItemVariants}
-            className="px-2.5 py-1 bg-zinc-900/50 border border-white/[0.08] rounded-md text-xs font-sans text-zinc-300 hover:border-white/[0.16] hover:text-white transition-colors"
+            className="px-2.5 py-1 bg-[#111214] rounded-md text-xs font-sans text-[#8B8D93] hover:text-[#F2F2F2] transition-colors cursor-default select-none"
           >
             {skill}
           </motion.span>

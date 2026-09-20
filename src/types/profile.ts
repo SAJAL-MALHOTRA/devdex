@@ -29,6 +29,17 @@ export interface DeveloperProfile {
   aiSummary: string;
 }
 
-export type DeviceState = 'idle' | 'power' | 'scan' | 'identify' | 'open' | 'profile';
+export type DeviceState =
+  | 'enter'
+  | 'card'
+  | 'scan'
+  | 'resolve'
+  | 'unfold'
+  | 'settled'
+  | 'idle'
+  | 'power'
+  | 'identify'
+  | 'open'
+  | 'profile';
 
 export type AIAgentState = 'idle' | 'listening' | 'thinking' | 'speaking';

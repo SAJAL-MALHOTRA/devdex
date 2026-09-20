@@ -2,172 +2,167 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { scannerRingVariants, scanLineVariants, statusTextVariants } from '@/animations/scannerAnimations';
 
 interface ScannerProps {
   isActive: boolean;
+  isResolving?: boolean;
+  developerName?: string;
+  role?: string;
   onScanComplete?: () => void;
 }
 
-const STATUS_MESSAGES = [
-  'Reading identity...',
-  'Fetching profile...',
-  'Analyzing stack...',
-  'Initializing profile...',
-];
+export default function Scanner({
+  isActive,
+  isResolving = false,
+  developerName = 'Sajal Malhotra',
+  role = 'Undergraduate Developer',
+  onScanComplete,
+}: ScannerProps) {
+  const [progress, setProgress] = useState(0);
 
-export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
-  const [currentMessage, setCurrentMessage] = useState(0);
-
+  // Smooth progress count-up during scanning phase (approx 700ms)
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || isResolving) return;
 
-    const interval = setInterval(() => {
-      setCurrentMessage((prev) => {
-        if (prev >= STATUS_MESSAGES.length - 1) {
-          clearInterval(interval);
-          onScanComplete?.();
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 500);
+    const startTime = performance.now();
+    const duration = 700; // ms
 
-    return () => clearInterval(interval);
-  }, [isActive, onScanComplete]);
+    let animationFrameId: number;
 
-  useEffect(() => {
-    if (!isActive) {
-      const t = setTimeout(() => setCurrentMessage(0), 0);
-      return () => clearTimeout(t);
-    }
-  }, [isActive]);
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+      setProgress(pct);
+
+      if (elapsed < duration) {
+        animationFrameId = requestAnimationFrame(tick);
+      } else {
+        onScanComplete?.();
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isActive, isResolving, onScanComplete]);
+
+  const initials = developerName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center">
-      {/* Scanner ring */}
-      <motion.div
-        className="relative w-32 h-32 md:w-40 md:h-40"
-        variants={scannerRingVariants}
-        animate={isActive ? 'scanning' : 'idle'}
-      >
-        {/* Outer ring */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 160 160"
-        >
-          <circle
-            cx="80"
-            cy="80"
-            r="72"
-            fill="none"
-            stroke="rgba(229, 72, 77, 0.12)"
-            strokeWidth="1"
-          />
-          <circle
-            cx="80"
-            cy="80"
-            r="72"
-            fill="none"
-            stroke="#e5484d"
-            strokeWidth="1.5"
-            strokeDasharray="8 12"
-            strokeLinecap="round"
-            opacity={isActive ? 0.6 : 0}
-            className="transition-opacity duration-300"
-          />
-        </svg>
+    <div className="relative w-full h-full flex flex-col items-center justify-center p-6 select-none">
+      {/* Horizontal hairline scan beam — passes across the card once */}
+      {isActive && !isResolving && (
+        <motion.div
+          className="absolute left-4 right-4 h-px pointer-events-none z-30"
+          initial={{ top: '15%', opacity: 0 }}
+          animate={{
+            top: ['15%', '85%'],
+            opacity: [0, 0.9, 0.9, 0],
+          }}
+          transition={{
+            duration: 0.7,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(229, 72, 77, 0.4) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(229, 72, 77, 0.4) 80%, transparent 100%)',
+            boxShadow: '0 0 12px rgba(229, 72, 77, 0.3)',
+          }}
+        />
+      )}
 
-        {/* Inner ring */}
-        <svg
-          className="absolute inset-4 w-[calc(100%-2rem)] h-[calc(100%-2rem)]"
-          viewBox="0 0 120 120"
-        >
-          <circle
-            cx="60"
-            cy="60"
-            r="52"
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.05)"
-            strokeWidth="0.5"
-          />
-        </svg>
+      {/* Developer Card Interior Surface */}
+      <div className="w-full max-w-[270px] flex flex-col items-center text-center">
+        {/* Top brand & card header */}
+        <div className="w-full flex items-center justify-between pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#e5484d]" />
+            <span className="text-[11px] font-semibold text-white tracking-tight">
+              DevDex
+            </span>
+          </div>
+          <span className="text-[10px] text-zinc-500 font-mono tracking-wider">
+            ID // 01
+          </span>
+        </div>
 
-        {/* Center QR-like pattern */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-14 h-14 md:w-16 md:h-16 relative">
-            {/* QR placeholder — geometric grid */}
-            <svg viewBox="0 0 64 64" className="w-full h-full opacity-60">
-              {/* Corner markers */}
-              <rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
-              <rect x="8" y="8" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
-              <rect x="44" y="4" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
-              <rect x="48" y="8" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
-              <rect x="4" y="44" width="16" height="16" rx="2" fill="none" stroke="#e5484d" strokeWidth="1.5" />
-              <rect x="8" y="48" width="8" height="8" rx="1" fill="#e5484d" opacity="0.4" />
-              {/* Center pattern */}
-              <rect x="26" y="26" width="12" height="12" rx="1" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
-              <rect x="29" y="29" width="6" height="6" rx="0.5" fill="#e5484d" opacity="0.3" />
-              {/* Data dots */}
-              <rect x="24" y="8" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.12)" />
-              <rect x="30" y="8" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="36" y="8" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.12)" />
-              <rect x="8" y="24" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="8" y="30" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.12)" />
-              <rect x="8" y="36" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="52" y="24" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.1)" />
-              <rect x="52" y="30" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.06)" />
-              <rect x="52" y="36" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.1)" />
-              <rect x="24" y="52" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="30" y="52" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.12)" />
-              <rect x="36" y="52" width="3" height="3" rx="0.5" fill="rgba(255,255,255,0.08)" />
-              <rect x="44" y="44" width="8" height="8" rx="1" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />
-              <rect x="46" y="46" width="4" height="4" rx="0.5" fill="rgba(255,255,255,0.06)" />
-            </svg>
+        {/* Minimal hardware monogram badge */}
+        <div className="my-7 relative">
+          <div className="w-14 h-14 rounded-xl bg-zinc-900/90 border border-white/[0.08] shadow-inner flex items-center justify-center relative overflow-hidden">
+            {/* Subtle tactile micro-chip hairline contact lines */}
+            <div className="absolute top-1 left-1 right-1 h-px bg-white/[0.04]" />
+            <div className="absolute bottom-1 left-1 right-1 h-px bg-white/[0.04]" />
+            <div className="absolute top-1 bottom-1 left-1 w-px bg-white/[0.04]" />
+            <div className="absolute top-1 bottom-1 right-1 w-px bg-white/[0.04]" />
+
+            <span className="text-xs font-semibold text-zinc-200 tracking-widest font-sans">
+              {initials}
+            </span>
           </div>
         </div>
 
-        {/* Crosshair lines */}
-        {isActive && (
-          <>
-            <motion.div
-              className="absolute left-1/2 top-0 w-px h-full bg-gradient-to-b from-transparent via-[#e5484d]/25 to-transparent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            />
-            <motion.div
-              className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#e5484d]/25 to-transparent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            />
-          </>
-        )}
-      </motion.div>
-
-      {/* Scan line */}
-      <motion.div
-        className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[#e5484d]/40 to-transparent"
-        variants={scanLineVariants}
-        animate={isActive ? 'scanning' : 'idle'}
-      />
-
-      {/* Status text */}
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-        <div className="h-5 overflow-hidden">
+        {/* Dynamic status display: Scanning vs Data Resolution */}
+        <div className="w-full min-h-[72px] flex flex-col items-center justify-center">
           <AnimatePresence mode="wait">
-            {isActive && (
-              <motion.p
-                key={currentMessage}
-                variants={statusTextVariants}
-                initial="enter"
-                animate="visible"
-                exit="exit"
-                className="text-xs font-sans text-zinc-400"
+            {!isResolving ? (
+              /* STAGE 02 — IDENTIFYING & PROGRESS */
+              <motion.div
+                key="scanning"
+                className="flex flex-col items-center gap-2.5 w-full"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
               >
-                {STATUS_MESSAGES[currentMessage]}
-              </motion.p>
+                <div className="flex flex-col items-center">
+                  <p className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">
+                    Identifying
+                  </p>
+                  <p className="text-xs font-medium text-white tracking-tight mt-0.5 font-sans">
+                    {developerName.toUpperCase()}
+                  </p>
+                </div>
+
+                {/* Segmented / linear progress track */}
+                <div className="w-40 flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-zinc-900 rounded-full overflow-hidden border border-white/[0.06]">
+                    <div
+                      className="h-full bg-zinc-200 rounded-full transition-all duration-75 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-400 w-7 text-right">
+                    {progress}%
+                  </span>
+                </div>
+              </motion.div>
+            ) : (
+              /* STAGE 03 — DATA RESOLUTION */
+              <motion.div
+                key="resolved"
+                className="flex flex-col items-center gap-1 w-full"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+              >
+                <p className="text-sm font-medium text-white tracking-tight font-sans">
+                  {developerName}
+                </p>
+                <p className="text-xs text-zinc-400 font-sans">
+                  {role}
+                </p>
+
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <p className="text-[10px] uppercase font-mono tracking-wider text-emerald-400/90">
+                    DevDex Profile Initialized
+                  </p>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

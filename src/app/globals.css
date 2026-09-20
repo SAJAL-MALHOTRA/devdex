@@ -1,19 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #f4f4f5;
-  --surface: #111113;
-  --surface-light: #161618;
-  --surface-lighter: #1e1e22;
-  --coral: #e5484d;
-  --coral-muted: rgba(229, 72, 77, 0.15);
-  --cyan: #e5484d; /* replace cyan with unified accent */
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
+  --background: #08090B;
+  --foreground: #F2F2F2;
+  --surface: #0C0D0F;
+  --surface-light: #111214;
+  --surface-lighter: #16171A;
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.16);
+  --text-primary: #F2F2F2;
+  --text-secondary: #8B8D93;
+  --text-muted: #55585F;
+  --text-tertiary: #55585F;
+  --coral: #E5484D;
+  --coral-muted: rgba(229, 72, 77, 0.15);
+  --cyan: #E5484D;
+  --accent: #E5484D;
+  --success: #20B486;
 }
 
 @theme inline {
@@ -33,6 +36,10 @@ body {
 /* 3D Transform Utilities — Preserved for panel unfold animation */
 .preserve-3d {
   transform-style: preserve-3d;
+}
+
+.perspective-1400 {
+  perspective: 1400px;
 }
 
 .perspective-1200 {
