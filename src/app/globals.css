@@ -1,22 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #08090B;
-  --foreground: #F2F2F2;
-  --surface: #0C0D0F;
-  --surface-light: #111214;
-  --surface-lighter: #16171A;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --text-primary: #F2F2F2;
-  --text-secondary: #8B8D93;
-  --text-muted: #55585F;
-  --text-tertiary: #55585F;
-  --coral: #E5484D;
-  --coral-muted: rgba(229, 72, 77, 0.15);
-  --cyan: #E5484D;
-  --accent: #E5484D;
-  --success: #20B486;
+  --background: #0a0a0a;
+  --foreground: #f5f5f5;
+  --surface: #141414;
+  --surface-light: #1a1a1a;
+  --surface-lighter: #222222;
+  --coral: #e85d4a;
+  --coral-muted: #c4453a;
+  --cyan: #4ac8e8;
+  --text-primary: #f5f5f5;
+  --text-secondary: #999999;
+  --text-tertiary: #666666;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
 }
 
 @theme inline {
@@ -33,13 +30,9 @@ body {
   overflow-x: hidden;
 }
 
-/* 3D Transform Utilities — Preserved for panel unfold animation */
+/* 3D Transform Utilities */
 .preserve-3d {
   transform-style: preserve-3d;
-}
-
-.perspective-1400 {
-  perspective: 1400px;
 }
 
 .perspective-1200 {
@@ -50,7 +43,7 @@ body {
   perspective: 800px;
 }
 
-/* Minimal scrollbar */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -70,52 +63,71 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(229, 72, 77, 0.25);
-  color: #ffffff;
+  background: rgba(232, 93, 74, 0.3);
+  color: #f5f5f5;
 }
 
-/* Animation keyframes — preserved for device transitions */
+/* LED breathing animation */
 @keyframes led-breathe {
   0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.8; }
+  50% { opacity: 1; }
 }
 
+/* Edge light sweep */
 @keyframes edge-sweep {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
+/* Scan line */
 @keyframes scan-line {
   0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 0.3; }
-  90% { opacity: 0.3; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
   100% { transform: translateY(100%); opacity: 0; }
 }
 
+/* Waveform bar animation */
 @keyframes waveform-idle {
-  0%, 100% { height: 3px; }
-  50% { height: 6px; }
-}
-
-@keyframes waveform-speaking {
-  0% { height: 3px; }
-  25% { height: var(--max-h, 16px); }
-  50% { height: 6px; }
-  75% { height: var(--mid-h, 12px); }
-  100% { height: 3px; }
-}
-
-@keyframes waveform-listening {
   0%, 100% { height: 4px; }
   50% { height: 8px; }
 }
 
-/* Noise texture overlay — softened to zero/clean */
-.noise-texture::before {
-  content: none;
+@keyframes waveform-speaking {
+  0% { height: 4px; }
+  25% { height: var(--max-h, 20px); }
+  50% { height: 8px; }
+  75% { height: var(--mid-h, 14px); }
+  100% { height: 4px; }
 }
 
-/* Glass reflection — removed fake sheen for clean workstation look */
+@keyframes waveform-listening {
+  0%, 100% { height: 6px; }
+  50% { height: 12px; }
+}
+
+/* Subtle noise texture overlay */
+.noise-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Glass reflection */
 .glass-reflection::after {
-  content: none;
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
 }

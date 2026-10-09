@@ -15,6 +15,24 @@ export interface SocialLinks {
   website?: string;
 }
 
+export interface Experience {
+  company: string;
+  role: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+}
+
+export interface Education {
+  institution: string;
+  degree: string;
+  field: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+}
+
 export interface DeveloperProfile {
   name: string;
   username: string;
@@ -24,22 +42,14 @@ export interface DeveloperProfile {
   bio: string;
   skills: string[];
   projects: Project[];
+  experience?: Experience[];
+  education?: Education[];
   links: SocialLinks;
+  phone?: string;
   availability: string;
   aiSummary: string;
 }
 
-export type DeviceState =
-  | 'enter'
-  | 'card'
-  | 'scan'
-  | 'resolve'
-  | 'unfold'
-  | 'settled'
-  | 'idle'
-  | 'power'
-  | 'identify'
-  | 'open'
-  | 'profile';
+export type DeviceState = 'idle' | 'power' | 'scan' | 'identify' | 'open' | 'profile';
 
 export type AIAgentState = 'idle' | 'listening' | 'thinking' | 'speaking';

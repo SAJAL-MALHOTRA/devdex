@@ -2,50 +2,35 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import type { SocialLinks } from '@/types/profile';
 import { connectVariants } from '@/animations/profileAnimations';
 
 interface ConnectProps {
   links: SocialLinks;
+  username: string;
+  name: string;
+  phone?: string;
 }
 
-export default function Connect({ links }: ConnectProps) {
-  const [copied, setCopied] = useState(false);
+export default function Connect({ links, username, name, phone }: ConnectProps) {
+  const [shareUrl, setShareUrl] = useState('');
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
 
-  const handleShare = async () => {
-    try {
-      if (typeof window !== 'undefined') {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch (err) {
-      console.error('Failed to copy link:', err);
-    }
+  const openShare = () => {
+    setShareUrl(`${window.location.origin}/developers/${encodeURIComponent(username)}`);
+    setCopyStatus('');
+    setIsShareOpen(true);
   };
 
-  const handleSaveContact = () => {
-    const vcard = [
-      'BEGIN:VCARD',
-      'VERSION:3.0',
-      'N:Malhotra;Sajal;;;',
-      'FN:Sajal Malhotra',
-      'ORG:DevDex',
-      'TEL;TYPE=CELL,VOICE:+919876543210',
-      'EMAIL;TYPE=INTERNET,HOME:sajal@devdex.dev',
-      'URL:https://devdex.dev/sajal',
-      'END:VCARD',
-    ].join('\r\n');
-
-    const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'sajal-malhotra.vcf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const copyProfileLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopyStatus('Link copied');
+    } catch {
+      setCopyStatus('Unable to copy link. Please copy the URL above.');
+    }
   };
 
   return (
@@ -53,76 +38,159 @@ export default function Connect({ links }: ConnectProps) {
       variants={connectVariants}
       initial="hidden"
       animate="visible"
-      className="pt-3 border-t border-white/[0.04] space-y-3"
+      className="mt-6"
     >
-      <div className="flex items-center justify-between">
-        <h2 className="text-[11px] font-mono uppercase tracking-widest text-[#55585F]">
-          Connect
-        </h2>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handleSaveContact}
-            className="text-[11px] font-mono text-[#8B8D93] hover:text-[#F2F2F2] transition-colors cursor-pointer px-2 py-0.5"
-          >
-            .vcf
-          </button>
-          <span className="text-[#55585F]">·</span>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="text-[11px] font-mono text-[#8B8D93] hover:text-[#F2F2F2] transition-colors cursor-pointer px-2 py-0.5"
-          >
-            {copied ? 'copied!' : 'share'}
-          </button>
-        </div>
-      </div>
-
-      {/* Clean inline link row */}
-      <div className="flex items-center gap-4 text-xs font-sans">
+      {/* Social Icons */}
+      <div className="flex gap-4 items-center justify-center mb-4">
         {links.github && (
           <a
             href={links.github}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#8B8D93] hover:text-[#F2F2F2] transition-colors flex items-center gap-1"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+            aria-label="GitHub"
           >
-            <span>GitHub</span>
-            <span className="text-[10px] text-[#55585F]">↗</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+            </svg>
           </a>
         )}
+
+        {links.website && (
+          <a
+            href={links.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+            aria-label="Website"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+          </a>
+        )}
+
         {links.linkedin && (
           <a
             href={links.linkedin}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#8B8D93] hover:text-[#F2F2F2] transition-colors flex items-center gap-1"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+            aria-label="LinkedIn"
           >
-            <span>LinkedIn</span>
-            <span className="text-[10px] text-[#55585F]">↗</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+              <rect x="2" y="9" width="4" height="12" />
+              <circle cx="4" cy="4" r="2" />
+            </svg>
           </a>
         )}
+
         {links.x && (
           <a
             href={links.x}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#8B8D93] hover:text-[#F2F2F2] transition-colors flex items-center gap-1"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+            aria-label="X"
           >
-            <span>X</span>
-            <span className="text-[10px] text-[#55585F]">↗</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
+              <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
+            </svg>
           </a>
         )}
+
         {links.email && (
           <a
             href={`mailto:${links.email}`}
-            className="text-[#8B8D93] hover:text-[#F2F2F2] transition-colors flex items-center gap-1"
+            className="text-gray-500 hover:text-white transition-colors duration-200"
+            aria-label="Email"
           >
-            <span>Email</span>
-            <span className="text-[10px] text-[#55585F]">↗</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
           </a>
         )}
       </div>
+
+      {/* Primary CTA */}
+      <a
+        href={`/developers/${encodeURIComponent(username)}/contact`}
+        className="w-full py-2.5 bg-[#e85d4a] hover:bg-[#d14e3d] text-white text-xs font-medium tracking-wide rounded-md transition-all duration-200 hover:-translate-y-[1px] hover:shadow-lg hover:shadow-[#e85d4a]/20 flex items-center justify-center gap-2"
+        aria-label={`Save ${name}${phone ? `, ${phone},` : ''} to your contacts`}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+        SAVE CONTACT
+      </a>
+
+      {/* Secondary CTA */}
+      <button
+        type="button"
+        onClick={openShare}
+        className="mt-2 w-full py-2.5 bg-transparent border border-white/[0.08] hover:border-white/[0.15] text-gray-400 hover:text-white text-xs font-medium tracking-wide rounded-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+        SHARE DEVDEX
+      </button>
+
+      {isShareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setIsShareOpen(false)}
+            aria-label="Close share dialog"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-profile-title"
+            className="relative z-10 w-full max-w-xs rounded-xl border border-white/10 bg-[#111] p-6 text-center shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => setIsShareOpen(false)}
+              className="absolute right-3 top-3 rounded p-1 text-gray-500 transition hover:text-white"
+              aria-label="Close share dialog"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m18 6-12 12M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 id="share-profile-title" className="font-mono text-xs uppercase tracking-[0.18em] text-white">
+              Share this profile
+            </h2>
+            <p className="mt-2 text-xs text-gray-500">
+              Scan to open {username}&apos;s developer portfolio.
+            </p>
+            <div className="mx-auto mt-5 w-fit rounded-lg bg-white p-3">
+              <QRCodeSVG value={shareUrl} size={184} level="H" />
+            </div>
+            <p className="mt-4 break-all font-mono text-[10px] text-gray-500">{shareUrl}</p>
+            <button
+              type="button"
+              onClick={copyProfileLink}
+              className="mt-4 w-full rounded-md bg-[#e85d4a] py-2.5 text-xs font-medium tracking-wide text-white transition hover:bg-[#d14e3d]"
+            >
+              COPY PROFILE LINK
+            </button>
+            <p aria-live="polite" className="mt-2 min-h-4 text-[11px] text-gray-500">
+              {copyStatus}
+            </p>
+          </div>
+        </div>
+      )}
     </motion.section>
   );
 }

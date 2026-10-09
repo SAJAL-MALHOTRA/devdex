@@ -5,6 +5,7 @@ import { DeveloperProfile } from '@/types/profile';
 import {
   profileContainerVariants,
   profileItemVariants,
+  scaleInVariants,
 } from '@/animations/profileAnimations';
 
 interface ProfileHeaderProps {
@@ -24,37 +25,65 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       variants={profileContainerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-3.5"
+      className="space-y-4"
     >
-      {/* Monogram + Name Lockup (Inline, editorial) */}
-      <motion.div variants={profileItemVariants} className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#111214] border border-white/[0.08] shadow-sm">
-          <span className="text-xs font-semibold text-[#F2F2F2] tracking-wider">
+      {/* Avatar + Identity */}
+      <motion.div variants={profileItemVariants} className="flex items-center gap-3.5">
+        <motion.div
+          variants={scaleInVariants}
+          className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #242424 100%)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span className="text-sm font-medium text-gray-300 tracking-wide">
             {initials}
           </span>
-        </div>
-        <div>
-          <h1 className="text-xl md:text-2xl font-semibold text-[#F2F2F2] tracking-tight leading-tight font-sans">
+        </motion.div>
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold text-white tracking-[-0.01em] leading-tight">
             {profile.name}
           </h1>
-          <p className="text-xs font-normal text-[#8B8D93] font-sans">
-            {profile.role}
-          </p>
+          <p className="text-[13px] text-gray-500 mt-0.5">{profile.role}</p>
         </div>
       </motion.div>
 
-      {/* Location & Availability Status */}
-      <motion.div variants={profileItemVariants} className="flex items-center gap-2 text-xs text-[#8B8D93]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#20B486]" />
-        <span>{profile.availability}</span>
-        <span className="text-[#55585F]">·</span>
-        <span>{profile.location}</span>
+      {/* Location + Availability */}
+      <motion.div variants={profileItemVariants} className="flex items-center gap-4 flex-wrap">
+        {profile.location && (
+          <div className="flex items-center gap-1.5">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-gray-600"
+            >
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <span className="text-[11px] text-gray-500">{profile.location}</span>
+          </div>
+        )}
+
+        {profile.availability && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
+            <span className="text-[11px] text-emerald-500/80">{profile.availability}</span>
+          </div>
+        )}
       </motion.div>
 
-      {/* Editorial Bio */}
+      {/* Bio */}
       {profile.bio && (
-        <motion.div variants={profileItemVariants} className="pt-0.5">
-          <p className="text-sm text-[#8B8D93] leading-relaxed font-sans max-w-lg">
+        <motion.div variants={profileItemVariants}>
+          <p className="text-[13px] text-gray-500 leading-[1.6] max-w-[280px]">
             {profile.bio}
           </p>
         </motion.div>

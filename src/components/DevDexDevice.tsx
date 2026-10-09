@@ -1,19 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  useReducedMotion,
-} from 'framer-motion';
-import type { DeviceState, DeveloperProfile } from '@/types/profile';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { DeviceState } from '@/types/profile';
+import type { DeveloperProfile } from '@/types/profile';
 import {
   deviceShellVariants,
   edgeLightVariants,
   displayVariants,
+  identityPulseVariants,
   leftPanelVariants,
   rightPanelVariants,
 } from '@/animations/deviceAnimations';
@@ -24,543 +19,523 @@ import Skills from './Skills';
 import Projects from './Projects';
 import DevDexAI from './DevDexAI';
 import Connect from './Connect';
+import Experience from './Experience';
+import Education from './Education';
 
 interface DevDexDeviceProps {
   profile: DeveloperProfile;
+  startOpen?: boolean;
 }
 
-export default function DevDexDevice({ profile }: DevDexDeviceProps) {
-  const prefersReducedMotion = useReducedMotion();
+export default function DevDexDevice({ profile, startOpen = false }: DevDexDeviceProps) {
+  const [state, setState] = useState<DeviceState>(startOpen ? 'profile' : 'idle');
+  const [showIdentityText, setShowIdentityText] = useState(false);
+  const [activeSection, setActiveSection] = useState('portfolio-profile');
+  const profileScrollerRef = useRef<HTMLDivElement>(null);
 
-  // 4-Stage intro state machine: enter -> card -> scan -> resolve -> unfold -> settled
-  const [state, setState] = useState<DeviceState>(() =>
-    prefersReducedMotion ? 'settled' : 'enter'
-  );
-  const [isMouseActive, setIsMouseActive] = useState(() => !!prefersReducedMotion);
-  const [hoveredPanel, setHoveredPanel] = useState<'left' | 'center' | 'right' | null>(null);
-  const [activeNav, setActiveNav] = useState('Profile');
+  const navigationItems = [
+    { label: 'PROFILE', id: 'portfolio-profile', available: true },
+    { label: 'EDUCATION', id: 'portfolio-education', available: (profile.education?.length ?? 0) > 0 },
+    { label: 'SKILLS', id: 'portfolio-skills', available: profile.skills.length > 0 },
+    { label: 'PROJECTS', id: 'portfolio-projects', available: profile.projects.length > 0 },
+    { label: 'EXPERIENCE', id: 'portfolio-experience', available: (profile.experience?.length ?? 0) > 0 },
+    { label: 'CONNECT', id: 'portfolio-connect', available: true },
+  ].filter((item) => item.available);
+  const isUnfolded = state === 'open' || state === 'profile';
 
-  const timersRef = useRef<NodeJS.Timeout[]>([]);
-
-  const clearAllTimers = useCallback(() => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  }, []);
-
-  // Automatic mount sequence: schedules timed progression without synchronous setState in effect
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-
-    // 0.2s — developer card appears at Z: -80px and glides forward to Z: 0px
-    const t1 = setTimeout(() => setState('card'), 200);
-
-    // 1.1s — identity scan begins (horizontal scan beam + progress bar)
-    const t2 = setTimeout(() => setState('scan'), 1100);
-
-    // 1.8s — identity resolves (Stage 03: Data resolution, ~400ms)
-    const t3 = setTimeout(() => setState('resolve'), 1800);
-
-    // 2.2s — card begins physical 3D unfolding from behind
-    const t4 = setTimeout(() => setState('unfold'), 2200);
-
-    // 3.1s — workspace settles into 3D positions
-    const t5 = setTimeout(() => setState('settled'), 3100);
-
-    // 3.3s — mouse interaction becomes active
-    const t6 = setTimeout(() => setIsMouseActive(true), 3300);
-
-    timersRef.current = [t1, t2, t3, t4, t5, t6];
-
-    return () => clearAllTimers();
-  }, [clearAllTimers, prefersReducedMotion]);
-
-  // Replay trigger for user click
-  const replayIntro = useCallback(() => {
-    clearAllTimers();
-
-    if (prefersReducedMotion) {
-      setState('settled');
-      setIsMouseActive(true);
-      return;
-    }
-
-    setState('enter');
-    setIsMouseActive(false);
-
-    const t1 = setTimeout(() => setState('card'), 200);
-    const t2 = setTimeout(() => setState('scan'), 1100);
-    const t3 = setTimeout(() => setState('resolve'), 1800);
-    const t4 = setTimeout(() => setState('unfold'), 2200);
-    const t5 = setTimeout(() => setState('settled'), 3100);
-    const t6 = setTimeout(() => setIsMouseActive(true), 3300);
-
-    timersRef.current = [t1, t2, t3, t4, t5, t6];
-  }, [clearAllTimers, prefersReducedMotion]);
-
-  // Fast-forward / Skip to final workspace
-  const skipToWorkspace = useCallback(() => {
-    clearAllTimers();
-    setState('settled');
-    setIsMouseActive(true);
-  }, [clearAllTimers]);
-
-  // Mouse coordinate motion values normalized to [-1, 1] from center
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  // Independent physics springs for each panel with distinct inertia
-  // Center panel (0.25x): crisp, hero focal anchor
-  const centerSpringX = useSpring(mouseX, { stiffness: 100, damping: 20, mass: 1 });
-  const centerSpringY = useSpring(mouseY, { stiffness: 100, damping: 20, mass: 1 });
-
-  // Left panel (0.55x): deliberate mechanical inertia
-  const leftSpringX = useSpring(mouseX, { stiffness: 85, damping: 18, mass: 1.1 });
-  const leftSpringY = useSpring(mouseY, { stiffness: 85, damping: 18, mass: 1.1 });
-
-  // Right panel (0.65x): fluid voice plane inertia
-  const rightSpringX = useSpring(mouseX, { stiffness: 75, damping: 16, mass: 1.2 });
-  const rightSpringY = useSpring(mouseY, { stiffness: 75, damping: 16, mass: 1.2 });
-
-  // Exact bounds & calibrated coefficients:
-  // Center: 0.25x -> transX ±2.0px, transY ±1.5px, rotX ±0.5°, rotY ±0.75°
-  const centerTiltX = useTransform(centerSpringY, [-1, 1], [0.5, -0.5]);
-  const centerTiltY = useTransform(centerSpringX, [-1, 1], [-0.75, 0.75]);
-  const centerParallaxX = useTransform(centerSpringX, [-1, 1], [-2.0, 2.0]);
-  const centerParallaxY = useTransform(centerSpringY, [-1, 1], [-1.5, 1.5]);
-
-  // Left: 0.55x -> transX ±4.4px, transY ±3.3px, rotX ±1.1°, rotY ±1.65°
-  const leftTiltX = useTransform(leftSpringY, [-1, 1], [1.1, -1.1]);
-  const leftTiltY = useTransform(leftSpringX, [-1, 1], [-1.65, 1.65]);
-  const leftParallaxX = useTransform(leftSpringX, [-1, 1], [-4.4, 4.4]);
-  const leftParallaxY = useTransform(leftSpringY, [-1, 1], [-3.3, 3.3]);
-
-  // Right: 0.65x -> transX ±5.2px, transY ±3.9px, rotX ±1.3°, rotY ±1.95°
-  const rightTiltX = useTransform(rightSpringY, [-1, 1], [1.3, -1.3]);
-  const rightTiltY = useTransform(rightSpringX, [-1, 1], [-1.95, 1.95]);
-  const rightParallaxX = useTransform(rightSpringX, [-1, 1], [-5.2, 5.2]);
-  const rightParallaxY = useTransform(rightSpringY, [-1, 1], [-3.9, 3.9]);
-
-  // Window pointer tracker with gentle decay on leave
-  useEffect(() => {
-    if (prefersReducedMotion || !isMouseActive) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const { innerWidth, innerHeight } = window;
-      const nx = (e.clientX - innerWidth / 2) / (innerWidth / 2);
-      const ny = (e.clientY - innerHeight / 2) / (innerHeight / 2);
-      mouseX.set(Math.max(-1, Math.min(1, nx)));
-      mouseY.set(Math.max(-1, Math.min(1, ny)));
-    };
-
-    const handlePointerLeave = () => {
-      mouseX.set(0);
-      mouseY.set(0);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    document.addEventListener('mouseleave', handlePointerLeave);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('mouseleave', handlePointerLeave);
-    };
-  }, [mouseX, mouseY, prefersReducedMotion, isMouseActive]);
-
-  const isUnfolded =
-    state === 'unfold' || state === 'settled' || state === 'open' || state === 'profile';
-
-  const scrollToSection = (item: string) => {
-    setActiveNav(item);
-    const targetId = `section-${item.toLowerCase()}`;
-    const el = document.getElementById(targetId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  const navigateToSection = (id: string) => {
+    profileScrollerRef.current
+      ?.querySelector<HTMLElement>(`#${id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSection(id);
   };
 
-  return (
-    <div className="perspective-1400 w-full flex flex-col items-center justify-center relative">
-      {/* Subtle Skip button during intro sequence */}
-      {!isUnfolded && state !== 'enter' && (
-        <motion.button
-          onClick={skipToWorkspace}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          whileHover={{ opacity: 1 }}
-          className="absolute -top-10 right-4 text-[11px] font-mono text-[#8B8D93] hover:text-[#F2F2F2] transition-opacity duration-200 cursor-pointer z-50 flex items-center gap-1 bg-[#111214] px-2.5 py-1 rounded border border-white/[0.08]"
-        >
-          <span>Skip reveal</span>
-          <span className="text-zinc-500">→</span>
-        </motion.button>
-      )}
+  useEffect(() => {
+    if (!isUnfolded) return;
 
-      {/* Shared 3D Scene */}
+    const scroller = profileScrollerRef.current;
+    if (!scroller) return;
+
+    const sectionIds = [
+      'portfolio-profile',
+      ...(profile.education?.length ? ['portfolio-education'] : []),
+      ...(profile.skills.length ? ['portfolio-skills'] : []),
+      ...(profile.projects.length ? ['portfolio-projects'] : []),
+      ...(profile.experience?.length ? ['portfolio-experience'] : []),
+      'portfolio-connect',
+    ];
+
+    const updateActiveSection = () => {
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) {
+        setActiveSection('portfolio-connect');
+        return;
+      }
+
+      const activationLine = scroller.getBoundingClientRect().top + 48;
+      const currentSection = sectionIds
+        .map((id) => scroller.querySelector<HTMLElement>(`#${id}`))
+        .filter((section): section is HTMLElement => section !== null)
+        .filter((section) => section.getBoundingClientRect().top <= activationLine)
+        .at(-1);
+
+      if (currentSection) setActiveSection(currentSection.id);
+    };
+
+    scroller.addEventListener('scroll', updateActiveSection, { passive: true });
+    return () => scroller.removeEventListener('scroll', updateActiveSection);
+  }, [isUnfolded, profile]);
+
+  const startSequence = useCallback(() => {
+    if (state !== 'idle') return;
+
+    // STATE 02 — POWER
+    setState('power');
+
+    setTimeout(() => {
+      // STATE 03 — SCAN
+      setState('scan');
+    }, 1200);
+  }, [state]);
+
+  const handleScanComplete = useCallback(() => {
+    // STATE 04 — IDENTIFY
+    setState('identify');
+    setShowIdentityText(true);
+
+    setTimeout(() => {
+      // STATE 05 — OPEN
+      setState('open');
+      setShowIdentityText(false);
+
+      setTimeout(() => {
+        // STATE 06 — PROFILE (settled)
+        setState('profile');
+      }, 1400);
+    }, 1400);
+  }, []);
+
+  return (
+    <div className="perspective-1200 w-full flex items-center justify-center">
       <div className="relative preserve-3d">
-        {/* Side panels — unfold physically from behind with 14px overlap under center */}
+        {/* Side panels — visible when unfolded */}
         <AnimatePresence>
           {isUnfolded && (
             <>
-              {/* LEFT PANEL — Developer Navigation (25% proportion: 270px width, Z: -20px) */}
+              {/* Left panel — Navigation */}
               <motion.div
-                className="absolute top-0 right-full w-[250px] md:w-[270px] h-full hidden md:block preserve-3d"
+                className="absolute top-0 left-0 w-full h-full hidden md:block"
                 variants={leftPanelVariants}
                 initial="closed"
                 animate="open"
                 exit="closed"
                 style={{ transformOrigin: 'right center' }}
               >
-                <motion.div
-                  className="w-full h-full preserve-3d"
-                  animate={
-                    prefersReducedMotion
-                      ? {}
-                      : {
-                          z: hoveredPanel === 'left' ? 8 : hoveredPanel ? -4 : 0,
-                          scale: hoveredPanel === 'left' ? 1.01 : hoveredPanel ? 0.99 : 1,
-                        }
-                  }
-                  transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-                  style={
-                    prefersReducedMotion || !isMouseActive
-                      ? {}
-                      : {
-                          rotateX: leftTiltX,
-                          rotateY: leftTiltY,
-                          x: leftParallaxX,
-                          y: leftParallaxY,
-                        }
-                  }
-                  onMouseEnter={() => setHoveredPanel('left')}
-                  onMouseLeave={() => setHoveredPanel(null)}
+                <div
+                  className="w-full h-full rounded-xl overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(180deg, #111111 0%, #0d0d0d 100%)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)',
+                  }}
                 >
-                  <div
-                    className="relative w-full h-full rounded-xl overflow-hidden transition-all duration-300"
-                    style={{
-                      background: '#0C0D0F',
-                      border:
-                        hoveredPanel === 'left'
-                          ? '1px solid rgba(255, 255, 255, 0.16)'
-                          : '1px solid rgba(255, 255, 255, 0.07)',
-                      boxShadow:
-                        hoveredPanel === 'left'
-                          ? '0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.12)'
-                          : '0 16px 40px rgba(0, 0, 0, 0.5)',
-                    }}
-                  >
-                    {/* Top edge specular hairline */}
-                    <div
-                      className="absolute top-0 left-4 right-4 h-px pointer-events-none z-30"
-                      style={{
-                        background:
-                          'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent)',
-                      }}
-                    />
+                  <div className="noise-texture relative h-full p-5 pt-6 flex flex-col justify-between">
+                    {/* DevDex wordmark */}
+                    <motion.p
+                      className="font-mono text-[9px] tracking-[0.25em] text-gray-600 uppercase"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      DevDex
+                    </motion.p>
 
-                    {/* Left Panel Inner Structure (Linear restraint) */}
-                    <div className="relative h-full p-6 flex flex-col justify-between z-10 select-none">
-                      {/* Section 1: Brand & Navigation */}
-                      <div>
-                        <div className="flex items-center gap-2 pb-4">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D]" />
-                          <span className="text-xs font-semibold text-[#F2F2F2] font-sans">
-                            DevDex
-                          </span>
-                        </div>
+                    {/* Navigation */}
+                    <nav aria-label="Portfolio sections" className="flex flex-col gap-5">
+                      {navigationItems.map((item, i) => (
+                          <motion.button
+                            key={item.id}
+                            type="button"
+                            aria-controls={item.id}
+                            aria-current={activeSection === item.id ? 'location' : undefined}
+                            onClick={() => navigateToSection(item.id)}
+                            className={`text-left font-mono text-[9px] tracking-[0.12em] uppercase transition-colors duration-300 ${
+                              activeSection === item.id
+                                ? 'text-gray-200'
+                                : 'text-gray-700 hover:text-gray-400'
+                            }`}
+                            initial={{ opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{
+                              delay: 0.4 + i * 0.06,
+                              type: 'spring',
+                              stiffness: 120,
+                              damping: 20,
+                            }}
+                          >
+                            {activeSection === item.id && (
+                              <span className="inline-block w-1 h-1 rounded-full bg-[#e85d4a] mr-2 -translate-y-px" />
+                            )}
+                            {item.label}
+                          </motion.button>
+                      ))}
+                    </nav>
 
-                        {/* Navigation links */}
-                        <nav className="flex flex-col gap-3.5 pt-5">
-                          {['Profile', 'Projects', 'Skills', 'Connect'].map((item) => {
-                            const isActive = activeNav === item;
-                            return (
-                              <button
-                                key={item}
-                                onClick={() => scrollToSection(item)}
-                                className={`text-left text-xs font-sans transition-all duration-150 cursor-pointer flex items-center ${
-                                  isActive
-                                    ? 'text-[#F2F2F2] font-medium border-l-2 border-[#E5484D] pl-3 -ml-3'
-                                    : 'text-[#8B8D93] hover:text-[#F2F2F2] font-normal border-l-2 border-transparent pl-3 -ml-3'
-                                }`}
-                              >
-                                {item}
-                              </button>
-                            );
-                          })}
-                        </nav>
-                      </div>
-
-                      {/* Section 2: Identity Footer */}
-                      <div className="pt-4 border-t border-white/[0.06]">
-                        <p className="text-xs font-medium text-[#F2F2F2] font-sans tracking-tight">
-                          Sajal Malhotra
-                        </p>
-                        <p className="text-[11px] text-[#55585F] font-sans mt-0.5">
-                          Developer Console
-                        </p>
-                      </div>
-                    </div>
+                    {/* Tagline */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 1 }}
+                    >
+                      <p className="font-mono text-[7px] tracking-[0.08em] text-gray-800 leading-[1.8]">
+                        MORE THAN
+                        <br />A PORTFOLIO.
+                        <br />
+                        <span className="text-gray-700">A CONVERSATION.</span>
+                      </p>
+                    </motion.div>
                   </div>
-                </motion.div>
+                </div>
               </motion.div>
 
-              {/* RIGHT PANEL — DevDex Voice Console (33% proportion: 360px width, Z: -15px) */}
+              {/* Right panel — AI Agent */}
               <motion.div
-                className="absolute top-0 left-full w-[320px] md:w-[360px] h-full hidden md:block preserve-3d"
+                className="absolute top-0 left-0 w-full h-full hidden md:block"
                 variants={rightPanelVariants}
                 initial="closed"
                 animate="open"
                 exit="closed"
                 style={{ transformOrigin: 'left center' }}
               >
-                <motion.div
-                  className="w-full h-full preserve-3d"
-                  animate={
-                    prefersReducedMotion
-                      ? {}
-                      : {
-                          z: hoveredPanel === 'right' ? 8 : hoveredPanel ? -4 : 0,
-                          scale: hoveredPanel === 'right' ? 1.01 : hoveredPanel ? 0.99 : 1,
-                        }
-                  }
-                  transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-                  style={
-                    prefersReducedMotion || !isMouseActive
-                      ? {}
-                      : {
-                          rotateX: rightTiltX,
-                          rotateY: rightTiltY,
-                          x: rightParallaxX,
-                          y: rightParallaxY,
-                        }
-                  }
-                  onMouseEnter={() => setHoveredPanel('right')}
-                  onMouseLeave={() => setHoveredPanel(null)}
+                <div
+                  className="w-full h-full rounded-xl overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(180deg, #111111 0%, #0d0d0d 100%)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)',
+                  }}
                 >
-                  <div
-                    className="relative w-full h-full rounded-xl overflow-hidden transition-all duration-300"
-                    style={{
-                      background: '#0C0D0F',
-                      border:
-                        hoveredPanel === 'right'
-                          ? '1px solid rgba(255, 255, 255, 0.16)'
-                          : '1px solid rgba(255, 255, 255, 0.07)',
-                      boxShadow:
-                        hoveredPanel === 'right'
-                          ? '0 24px 60px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.12)'
-                          : '0 16px 40px rgba(0, 0, 0, 0.5)',
-                    }}
-                  >
-                    {/* Top edge specular hairline */}
-                    <div
-                      className="absolute top-0 left-4 right-4 h-px pointer-events-none z-30"
-                      style={{
-                        background:
-                          'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent)',
-                      }}
-                    />
-
-                    <div className="relative h-full overflow-y-auto z-10">
-                      <DevDexAI developerName={profile.name.split(' ')[0]} />
-                    </div>
+                  <div className="noise-texture glass-reflection relative h-full overflow-y-auto p-1">
+                    <DevDexAI profile={profile} />
                   </div>
-                </motion.div>
+                </div>
               </motion.div>
             </>
           )}
         </AnimatePresence>
 
-        {/* CENTER PANEL — Hero Identity & Work (42% proportion: 470px width, Z: +25px) */}
+        {/* Main device body */}
         <motion.div
-          className="relative z-20 w-[340px] md:w-[470px] preserve-3d"
+          className="relative z-10 w-[320px] md:w-[360px]"
           variants={deviceShellVariants}
-          initial="enter"
           animate={state}
+          transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+          onClick={state === 'idle' ? startSequence : undefined}
+          role={state === 'idle' ? 'button' : undefined}
+          tabIndex={state === 'idle' ? 0 : undefined}
+          aria-label={state === 'idle' ? 'Activate DevDex' : undefined}
+          style={{ cursor: state === 'idle' ? 'pointer' : 'default' }}
         >
-          <motion.div
-            className="w-full h-full preserve-3d"
-            animate={
-              prefersReducedMotion
-                ? {}
-                : {
-                    z: hoveredPanel === 'center' ? 8 : isUnfolded && hoveredPanel ? -4 : 0,
-                    scale:
-                      hoveredPanel === 'center'
-                        ? 1.01
-                        : isUnfolded && hoveredPanel
-                        ? 0.99
-                        : 1,
-                  }
-            }
-            transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-            style={
-              prefersReducedMotion || !isMouseActive
-                ? {}
-                : {
-                    rotateX: centerTiltX,
-                    rotateY: centerTiltY,
-                    x: centerParallaxX,
-                    y: centerParallaxY,
-                  }
-            }
-            onMouseEnter={() => isUnfolded && setHoveredPanel('center')}
-            onMouseLeave={() => isUnfolded && setHoveredPanel(null)}
+          {/* Device outer shell */}
+          <div
+            className="relative rounded-xl overflow-hidden"
+            style={{
+              // Bevel effect — layered shadows for physical depth
+              boxShadow:
+                '0 1px 0 rgba(255,255,255,0.04), 0 -1px 0 rgba(0,0,0,0.3), 0 30px 70px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3)',
+            }}
           >
-            {/* Outer physical housing with lateral overlap drop shadows */}
+            {/* Metal housing */}
             <div
-              className="relative rounded-xl overflow-hidden transition-all duration-300"
+              className="relative rounded-xl min-h-[500px] md:min-h-[560px]"
               style={{
-                border:
-                  hoveredPanel === 'center'
-                    ? '1px solid rgba(255, 255, 255, 0.18)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: isUnfolded
-                  ? hoveredPanel === 'center'
-                    ? '0 1px 0 rgba(255,255,255,0.12), 0 32px 80px rgba(0,0,0,0.8), -12px 0 28px rgba(0,0,0,0.55), 12px 0 28px rgba(0,0,0,0.55)'
-                    : '0 1px 0 rgba(255,255,255,0.08), 0 24px 60px rgba(0,0,0,0.65), -10px 0 22px rgba(0,0,0,0.45), 10px 0 22px rgba(0,0,0,0.45)'
-                  : '0 1px 0 rgba(255,255,255,0.06), 0 24px 60px rgba(0,0,0,0.65)',
+                background: 'linear-gradient(180deg, #121212 0%, #0e0e0e 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              {/* Primary focal surface */}
-              <div
-                className="relative rounded-xl min-h-[540px] md:min-h-[600px]"
-                style={{
-                  background: '#0C0D0F',
-                }}
-              >
-                {/* Subtle top edge specular hairline */}
-                <div
-                  className="absolute top-0 left-4 right-4 h-px pointer-events-none z-20"
-                  style={{
-                    background:
-                      'linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)',
-                  }}
-                />
+              {/* Noise texture overlay */}
+              <div className="noise-texture absolute inset-0 rounded-xl" />
 
-                {/* Edge light — animated glow */}
+              {/* Top bevel highlight */}
+              <div
+                className="absolute top-0 left-4 right-4 h-px pointer-events-none"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
+                }}
+              />
+
+              {/* Edge light — animated glow */}
+              <motion.div
+                className="absolute inset-0 rounded-xl pointer-events-none"
+                style={{
+                  boxShadow: 'inset 0 0 0 1px rgba(232, 93, 74, 0.1)',
+                }}
+                variants={edgeLightVariants}
+                animate={state}
+              />
+
+              {/* Animated edge sweep during power/scan */}
+              {(state === 'power' || state === 'scan') && (
                 <motion.div
                   className="absolute inset-0 rounded-xl pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   style={{
-                    boxShadow: 'inset 0 0 0 1px rgba(229, 72, 77, 0.12)',
+                    background: `conic-gradient(from 0deg, transparent 0%, rgba(232,93,74,0.12) 10%, transparent 20%)`,
                   }}
-                  variants={edgeLightVariants}
-                  animate={state}
+                >
+                  <motion.div
+                    className="w-full h-full rounded-xl"
+                    style={{
+                      background: 'inherit',
+                    }}
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'linear',
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* Top LED row */}
+              <div className="absolute top-3.5 right-3.5 flex gap-2 z-20">
+                <LEDIndicator
+                  color="red"
+                  active={state !== 'idle'}
+                  size={3}
+                />
+                <LEDIndicator
+                  color="cyan"
+                  active={state === 'scan' || state === 'identify'}
+                  size={3}
+                />
+              </div>
+
+              {/* Display area — inset glass panel */}
+              <motion.div
+                className="relative mx-3 mt-3 mb-6 rounded-lg overflow-hidden"
+                style={{
+                  background: '#080808',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.03)',
+                  minHeight: 'calc(100% - 3rem)',
+                }}
+                variants={displayVariants}
+                animate={state}
+              >
+                {/* Glass reflection — very subtle diagonal highlight */}
+                <div
+                  className="absolute inset-0 z-10 pointer-events-none rounded-lg"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.01) 100%)',
+                  }}
                 />
 
-                {/* Top LED row */}
-                <div className="absolute top-3.5 right-3.5 flex gap-2 z-20">
-                  <LEDIndicator
-                    color="red"
-                    active={state !== 'enter'}
-                    size={3}
-                  />
-                  <LEDIndicator
-                    color="neutral"
-                    active={state === 'scan' || state === 'resolve'}
-                    size={3}
-                  />
-                </div>
+                {/* Content container with proper min-height */}
+                <div className="relative min-h-[470px] md:min-h-[520px]">
+                  {/* IDLE STATE */}
+                  <AnimatePresence mode="wait">
+                    {state === 'idle' && (
+                      <motion.div
+                        key="idle"
+                        className="absolute inset-0 flex flex-col items-center justify-center p-10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.3 } }}
+                      >
+                        {/* DevDex logo — clean, editorial */}
+                        <motion.h1
+                          className="text-[22px] md:text-[26px] font-semibold tracking-[0.02em] text-white"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3, type: 'spring', stiffness: 120, damping: 20 }}
+                        >
+                          DEVDEX
+                        </motion.h1>
 
-                {/* Display area — inset surface with 30-40% fewer borders */}
-                <motion.div
-                  className="relative mx-3.5 mt-3.5 mb-6 rounded-lg overflow-hidden"
-                  style={{
-                    background: '#08090B',
-                    minHeight: 'calc(100% - 3.25rem)',
-                  }}
-                  variants={displayVariants}
-                  animate={state}
-                >
-                  <div className="relative min-h-[500px] md:min-h-[550px]">
-                    <AnimatePresence mode="wait">
-                      {/* STAGE 01 / STAGE 02 / STAGE 03: DEVELOPER CARD & ELEGANT SCAN */}
-                      {!isUnfolded && (
+                        <div className="flex-1" />
+
+                        {/* Tagline */}
                         <motion.div
-                          key="card-intro"
-                          className="absolute inset-0 flex items-center justify-center"
+                          className="text-center"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          exit={{ opacity: 0, transition: { duration: 0.3 } }}
+                          transition={{ delay: 0.7 }}
                         >
-                          <Scanner
-                            isActive={state === 'scan' || state === 'resolve'}
-                            isResolving={state === 'resolve'}
-                            developerName={profile.name}
-                            role={profile.role}
-                          />
+                          <p className="font-mono text-[8px] tracking-[0.12em] text-gray-600 leading-[2] uppercase">
+                            More than a portfolio.
+                            <br />
+                            A conversation.
+                          </p>
                         </motion.div>
-                      )}
 
-                      {/* STAGE 04 & SETTLED: UNVEILED DEVELOPER WORKSPACE */}
-                      {isUnfolded && (
-                        <motion.div
-                          key="profile-workspace"
-                          className="absolute inset-0 overflow-y-auto"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.15, duration: 0.5 }}
+                        {/* Tap hint — restrained pulse */}
+                        <motion.p
+                          className="mt-8 font-mono text-[8px] tracking-[0.15em] text-gray-700 uppercase"
+                          animate={{ opacity: [0.2, 0.5, 0.2] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                         >
-                          <div className="p-6 space-y-6">
-                            <div id="section-profile">
-                              <ProfileHeader profile={profile} />
-                            </div>
-                            <div id="section-projects">
-                              <Projects projects={profile.projects} />
-                            </div>
-                            <div id="section-skills">
+                          Tap to activate
+                        </motion.p>
+                      </motion.div>
+                    )}
+
+                    {/* POWER STATE */}
+                    {state === 'power' && (
+                      <motion.div
+                        key="power"
+                        className="absolute inset-0 flex flex-col items-center justify-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                      >
+                        <motion.div
+                          className="w-1 h-1 rounded-full bg-[#e85d4a]"
+                          animate={{
+                            scale: [1, 2.5, 1.5],
+                            opacity: [0.4, 1, 0.6],
+                          }}
+                          transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+                        />
+                        <motion.p
+                          className="mt-5 font-mono text-[9px] tracking-[0.25em] text-gray-600 uppercase"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 0.5 }}
+                          transition={{ delay: 0.4 }}
+                        >
+                          Initializing
+                        </motion.p>
+                      </motion.div>
+                    )}
+
+                    {/* SCAN STATE */}
+                    {state === 'scan' && (
+                      <motion.div
+                        key="scan"
+                        className="absolute inset-0"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                      >
+                        <Scanner
+                          isActive={true}
+                          onScanComplete={handleScanComplete}
+                        />
+                      </motion.div>
+                    )}
+
+                    {/* IDENTIFY STATE */}
+                    {state === 'identify' && (
+                      <motion.div
+                        key="identify"
+                        className="absolute inset-0 flex flex-col items-center justify-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, scale: 1.02, transition: { duration: 0.5 } }}
+                      >
+                        {/* Radial pulse */}
+                        <motion.div
+                          className="absolute w-40 h-40 rounded-full"
+                          style={{
+                            background:
+                              'radial-gradient(circle, rgba(232, 93, 74, 0.15) 0%, transparent 70%)',
+                          }}
+                          variants={identityPulseVariants}
+                          initial="hidden"
+                          animate="visible"
+                        />
+
+                        <AnimatePresence mode="wait">
+                          {showIdentityText && (
+                            <motion.div
+                              key="identity-text"
+                              className="flex flex-col items-center gap-2"
+                            >
+                              <motion.p
+                                className="font-mono text-[11px] tracking-[0.25em] text-white uppercase"
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.15, type: 'spring', stiffness: 150, damping: 20 }}
+                              >
+                                Identity Found
+                              </motion.p>
+                              <motion.p
+                                className="font-mono text-[9px] tracking-[0.2em] text-gray-600 uppercase"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 0.5 }}
+                                transition={{ delay: 0.5 }}
+                              >
+                                Opening DevDex
+                              </motion.p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+
+                    {/* PROFILE STATE (after unfold) */}
+                    {(state === 'open' || state === 'profile') && (
+                      <motion.div
+                        key="profile"
+                        ref={profileScrollerRef}
+                        className="absolute inset-0 overflow-y-auto"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4, duration: 0.6 }}
+                      >
+                        <div className="p-4 md:p-5 space-y-6">
+                          <section id="portfolio-profile" className="scroll-mt-4">
+                            <ProfileHeader profile={profile} />
+                          </section>
+                          {(profile.education?.length ?? 0) > 0 && (
+                            <section id="portfolio-education" className="scroll-mt-4">
+                              <Education entries={profile.education ?? []} />
+                            </section>
+                          )}
+                          {profile.skills.length > 0 && (
+                            <section id="portfolio-skills" className="scroll-mt-4">
                               <Skills skills={profile.skills} />
-                            </div>
-                            {/* Voice section inline on mobile only */}
-                            <div className="md:hidden">
-                              <DevDexAI
-                                developerName={profile.name.split(' ')[0]}
-                              />
-                            </div>
-                            <div id="section-connect">
-                              <Connect links={profile.links} />
-                            </div>
+                            </section>
+                          )}
+                          {profile.projects.length > 0 && (
+                            <section id="portfolio-projects" className="scroll-mt-4">
+                              <Projects projects={profile.projects} />
+                            </section>
+                          )}
+                          {(profile.experience?.length ?? 0) > 0 && (
+                            <section id="portfolio-experience" className="scroll-mt-4">
+                              <Experience entries={profile.experience ?? []} />
+                            </section>
+                          )}
+                          {/* AI section inline on mobile */}
+                          <div className="md:hidden">
+                            <DevDexAI profile={profile} />
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-
-                {/* Bottom bezel — DevDex branding */}
-                <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center">
-                  <p className="text-[10px] text-[#55585F] font-mono select-none tracking-tight">
-                    DEVDEX // CONSOLE
-                  </p>
+                          <section id="portfolio-connect" className="scroll-mt-4">
+                            <Connect
+                              links={profile.links}
+                              username={profile.username}
+                              name={profile.name}
+                              phone={profile.phone}
+                            />
+                          </section>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+              </motion.div>
+
+              {/* Bottom bezel — DevDex branding */}
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+                <p className="font-mono text-[7px] tracking-[0.3em] text-gray-800 uppercase select-none">
+                  DevDex
+                </p>
               </div>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
-
-      {/* Subtle replay button once settled */}
-      {isUnfolded && (
-        <motion.button
-          onClick={replayIntro}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.4 }}
-          whileHover={{ opacity: 0.9 }}
-          className="mt-7 text-[11px] font-mono text-[#55585F] hover:text-[#8B8D93] transition-opacity duration-200 cursor-pointer flex items-center gap-1.5"
-          title="Replay 3D intro animation"
-        >
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-          <span>Replay intro</span>
-        </motion.button>
-      )}
     </div>
   );
 }

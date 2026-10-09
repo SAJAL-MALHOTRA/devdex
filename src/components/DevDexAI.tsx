@@ -1,390 +1,298 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import type { DeveloperProfile } from '@/types/profile';
 
-interface DevDexVoiceProps {
-  developerName: string;
+type AIAgentState = 'idle' | 'listening' | 'thinking' | 'speaking';
+
+const WAVEFORM_BARS = 20;
+
+function buildDeveloperIntroduction(profile: DeveloperProfile): string {
+  const projectTechnologies = Array.from(
+    new Set(profile.projects.flatMap((project) => project.technologies)),
+  ).slice(0, 6);
+  const projects = profile.projects.map((project) => project.name).filter(Boolean).slice(0, 2);
+  const experience = (profile.experience ?? [])
+    .map((entry) => `${entry.role}${entry.company ? ` at ${entry.company}` : ''}`)
+    .filter(Boolean)
+    .slice(0, 2);
+  const education = (profile.education ?? [])
+    .map((entry) =>
+      `${[entry.degree, entry.field].filter(Boolean).join(' in ')}${entry.institution ? ` at ${entry.institution}` : ''}`.trim(),
+    )
+    .filter(Boolean)
+    .slice(0, 2);
+  const bio = (profile.bio || profile.aiSummary).trim();
+  const conciseBio =
+    bio.length > 180 ? `${bio.slice(0, 177).trimEnd()}…` : bio;
+  const introduction = [
+    `Let me introduce ${profile.name}.`,
+    (profile.role || profile.location) &&
+      `${profile.role ? `Their role is ${profile.role}` : 'They are a developer'}${profile.location ? `, based in ${profile.location}` : ''}.`,
+    conciseBio && `In their own words: "${conciseBio}"`,
+    profile.skills.length > 0 &&
+      `They work with ${profile.skills.slice(0, 6).join(', ')}.`,
+    projects.length > 0 &&
+      `Their projects include ${projects.join(' and ')}.`,
+    projectTechnologies.length > 0 &&
+      `Across those projects, they use technologies such as ${projectTechnologies.join(', ')}.`,
+    experience.length > 0 && `They have experience as ${experience.join(' and ')}.`,
+    education.length > 0 && `Their education includes ${education.join(' and ')}.`,
+  ].filter((sentence): sentence is string => typeof sentence === 'string' && sentence.length > 0);
+
+  const fullIntroduction = introduction.join(' ');
+  if (fullIntroduction.length <= 850) return fullIntroduction;
+
+  const trimmedIntroduction = fullIntroduction.slice(0, 847).trimEnd();
+  const lastSpace = trimmedIntroduction.lastIndexOf(' ');
+  return `${trimmedIntroduction.slice(0, lastSpace)}…`;
 }
 
-type VoiceState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'ended';
+export default function DevDexAI({ profile }: { profile: DeveloperProfile }) {
+  const [agentState, setAgentState] = useState<AIAgentState>('idle');
+  const [barHeights, setBarHeights] = useState<number[]>(() =>
+    Array.from({ length: WAVEFORM_BARS }, () => Math.random()),
+  );
+  const [showSummary, setShowSummary] = useState(false);
+  const [speechError, setSpeechError] = useState('');
+  const [spokenCharacters, setSpokenCharacters] = useState(0);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-export default function DevDexAI({ developerName }: DevDexVoiceProps) {
-  const [state, setState] = useState<VoiceState>('idle');
-  const [timer, setTimer] = useState(0);
-  const [showTranscript, setShowTranscript] = useState(false);
-  const [needleHeights, setNeedleHeights] = useState<number[]>([14, 28, 42, 20, 36, 18, 40, 24, 16]);
+  const developerName = profile.name.split(' ')[0];
+  const summary = buildDeveloperIntroduction(profile);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const stateTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearTimers = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (stateTimerRef.current) clearTimeout(stateTimerRef.current);
-  };
-
+  // Animate waveform when speaking
   useEffect(() => {
-    return () => clearTimers();
+    if (agentState !== 'speaking') return;
+    const interval = setInterval(() => {
+      setBarHeights(Array.from({ length: WAVEFORM_BARS }, () => Math.random()));
+    }, 120);
+    return () => clearInterval(interval);
+  }, [agentState]);
+
+  useEffect(() => () => {
+    if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+    if (utteranceRef.current) {
+      utteranceRef.current.onend = null;
+      utteranceRef.current.onerror = null;
+      window.speechSynthesis?.cancel();
+    }
   }, []);
 
-  // Animate amplitude needles during listening and speaking
-  useEffect(() => {
-    if (state !== 'listening' && state !== 'speaking') return;
+  const toggleSpeech = () => {
+    if (utteranceRef.current) {
+      utteranceRef.current.onend = null;
+      utteranceRef.current.onerror = null;
+      if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+      setAgentState('idle');
+      return;
+    }
 
-    const interval = setInterval(() => {
-      setNeedleHeights(
-        Array.from({ length: 9 }, () => Math.floor(Math.random() * (state === 'speaking' ? 36 : 24)) + 10)
+    setShowSummary(true);
+    setSpokenCharacters(0);
+    setSpeechError('');
+
+    if (!summary) {
+      setSpeechError(`${profile.name} hasn't added enough profile details for an introduction.`);
+      return;
+    }
+
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      setSpeechError('Voice playback is not supported by this browser.');
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(summary);
+    const englishVoices = window.speechSynthesis.getVoices().filter((voice) =>
+      voice.lang.toLowerCase().startsWith('en'),
+    );
+    utterance.voice =
+      englishVoices.find((voice) => /robot|synthetic|zarvox|trinoid|computer/i.test(voice.name)) ??
+      englishVoices.find((voice) => /fred/i.test(voice.name)) ??
+      englishVoices.find((voice) => voice.lang.toLowerCase() === 'en-us') ??
+      englishVoices[0] ??
+      null;
+    utteranceRef.current = utterance;
+    utterance.lang = utterance.voice?.lang || navigator.language || 'en-US';
+    utterance.rate = 0.9;
+    utterance.pitch = 0.35;
+    utterance.onstart = () => {
+      setAgentState('speaking');
+      typingIntervalRef.current = setInterval(() => {
+        setSpokenCharacters((current) => Math.min(current + 1, summary.length));
+      }, 90);
+    };
+    utterance.onboundary = (event) => {
+      setSpokenCharacters((current) =>
+        Math.max(current, Math.min(event.charIndex + (event.charLength ?? 0), summary.length)),
       );
-    }, 120);
-
-    return () => clearInterval(interval);
-  }, [state]);
-
-  // Handle call lifecycle simulation
-  const startCall = () => {
-    clearTimers();
-    setState('connecting');
-
-    // Connecting (800ms) -> Listening
-    stateTimerRef.current = setTimeout(() => {
-      setState('listening');
-      setTimer(0);
-
-      timerRef.current = setInterval(() => {
-        setTimer((t) => t + 1);
-      }, 1000);
-
-      // Listening for 4.5s -> Thinking
-      stateTimerRef.current = setTimeout(() => {
-        setState('thinking');
-
-        // Thinking for 1.2s -> Speaking
-        stateTimerRef.current = setTimeout(() => {
-          setState('speaking');
-
-          // Speaking for 5s -> Idle
-          stateTimerRef.current = setTimeout(() => {
-            clearTimers();
-            setState('idle');
-          }, 5000);
-        }, 1200);
-      }, 4500);
-    }, 800);
+    };
+    utterance.onend = () => {
+      if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+      setSpokenCharacters(summary.length);
+      utteranceRef.current = null;
+      setAgentState('idle');
+    };
+    utterance.onerror = () => {
+      if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+      utteranceRef.current = null;
+      setAgentState('idle');
+      setSpeechError('Voice playback could not start. Please try again.');
+    };
+    setAgentState('thinking');
+    window.speechSynthesis.speak(utterance);
   };
 
-  const endCall = () => {
-    clearTimers();
-    setState('idle');
-    setTimer(0);
-  };
+  const greetingLines = [
+    'Hey.',
+    `I'm DevDex AI.`,
+    '',
+    'Want me to tell you',
+    `about ${developerName}?`,
+  ];
 
-  const formatTime = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const remaining = secs % 60;
-    return `${String(mins).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
+  const getBarConfig = (randomVal: number) => {
+    switch (agentState) {
+      case 'idle':
+        return { height: 3 + randomVal * 3, opacity: 0.15 };
+      case 'listening':
+        return { height: 5 + randomVal * 7, opacity: 0.4 };
+      case 'thinking':
+        return { height: 6 + randomVal * 6, opacity: 0.5 };
+      case 'speaking':
+        return { height: 4 + randomVal * 18, opacity: 0.7 + randomVal * 0.3 };
+    }
   };
 
   return (
-    <section className="p-6 flex flex-col justify-between h-full select-none">
-      {/* Top Header */}
-      <div>
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.04]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D]" />
-            <h2 className="text-[11px] font-mono uppercase tracking-widest text-[#F2F2F2]">
-              DevDex Voice
-            </h2>
-          </div>
-          <span className="text-[10px] font-mono text-[#55585F] tracking-wider uppercase">
-            v1.0
-          </span>
-        </div>
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 100, damping: 20, delay: 0.2 }}
+      className="p-4"
+    >
+      <h2 className="text-[9px] font-mono uppercase tracking-[0.2em] text-gray-700 mb-4">
+        DevDex AI
+      </h2>
 
-        <p className="text-xs text-[#8B8D93] mt-2 font-sans">
-          {state === 'listening'
-            ? 'Listening to you...'
-            : state === 'speaking'
-            ? `${developerName}'s AI is speaking`
-            : state === 'thinking'
-            ? 'Processing voice input...'
-            : state === 'connecting'
-            ? 'Connecting audio stream...'
-            : `Ask me about ${developerName}`}
-        </p>
-      </div>
-
-      {/* Center Transforming Voice Visualizer */}
-      <div className="my-auto py-6 flex flex-col items-center justify-center relative">
-        <AnimatePresence mode="wait">
-          {/* STATE: IDLE */}
-          {state === 'idle' && (
-            <motion.div
-              key="idle"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="flex flex-col items-center"
-            >
-              {/* Idle Orb */}
-              <div className="w-28 h-28 rounded-full border border-white/[0.08] bg-[#111214]/60 flex items-center justify-center relative shadow-inner">
-                {/* Secondary inner ring */}
-                <div className="w-16 h-16 rounded-full border border-white/[0.05] flex items-center justify-center">
-                  {/* Subtle red core with resting glow */}
-                  <motion.div
-                    className="w-3.5 h-3.5 rounded-full bg-[#E5484D]"
-                    animate={{
-                      scale: [1, 1.15, 1],
-                      boxShadow: [
-                        '0 0 0 0 rgba(229, 72, 77, 0.3)',
-                        '0 0 14px 4px rgba(229, 72, 77, 0.2)',
-                        '0 0 0 0 rgba(229, 72, 77, 0.3)',
-                      ],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Sub-label */}
-              <p className="text-xs font-medium text-[#F2F2F2] mt-4 font-sans">
-                DevDex AI
-              </p>
-              <p className="text-[11px] text-[#55585F] font-mono mt-0.5">
-                Voice Assistant
-              </p>
-            </motion.div>
-          )}
-
-          {/* STATE: CONNECTING */}
-          {state === 'connecting' && (
-            <motion.div
-              key="connecting"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="flex flex-col items-center"
-            >
-              <div className="w-28 h-28 rounded-full border border-dashed border-white/[0.2] flex items-center justify-center relative animate-[spin_8s_linear_infinite]">
-                <div className="w-16 h-16 rounded-full border border-white/[0.08] flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-[#E5484D] animate-ping" />
-                </div>
-              </div>
-              <p className="text-xs font-mono text-[#8B8D93] mt-4 animate-pulse">
-                Connecting...
-              </p>
-            </motion.div>
-          )}
-
-          {/* STATE: LISTENING (Acoustic Diaphragm) */}
-          {state === 'listening' && (
-            <motion.div
-              key="listening"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="flex flex-col items-center"
-            >
-              {/* Diaphragm container with concentric wave aura */}
-              <div className="w-28 h-28 rounded-full border border-[#E5484D]/30 bg-[#111214]/80 flex items-center justify-center relative shadow-[0_0_24px_rgba(229,72,77,0.15)]">
-                {/* Expanding sonar ripple */}
-                <motion.div
-                  className="absolute inset-0 rounded-full border border-[#E5484D]/25 pointer-events-none"
-                  animate={{
-                    scale: [1, 1.4],
-                    opacity: [0.6, 0],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: 'easeOut',
-                  }}
-                />
-
-                {/* Vertical acoustic amplitude needles */}
-                <div className="flex items-center gap-1 h-12">
-                  {needleHeights.map((h, idx) => (
-                    <motion.div
-                      key={idx}
-                      className="w-0.5 rounded-full bg-[#E5484D]"
-                      animate={{ height: `${h}px` }}
-                      transition={{ duration: 0.12 }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <p className="text-xs font-mono text-[#E5484D] mt-4 tracking-wider uppercase">
-                Listening...
-              </p>
-            </motion.div>
-          )}
-
-          {/* STATE: THINKING */}
-          {state === 'thinking' && (
-            <motion.div
-              key="thinking"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="flex flex-col items-center"
-            >
-              <div className="w-28 h-28 rounded-full border border-white/[0.08] bg-[#111214]/60 flex items-center justify-center relative">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-
-              <p className="text-xs font-mono text-[#8B8D93] mt-4 tracking-wider uppercase">
-                Thinking...
-              </p>
-            </motion.div>
-          )}
-
-          {/* STATE: SPEAKING (Dynamic audio waveform) */}
-          {state === 'speaking' && (
-            <motion.div
-              key="speaking"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="flex flex-col items-center"
-            >
-              <div className="w-28 h-28 rounded-full border border-white/[0.12] bg-[#111214] flex items-center justify-center relative shadow-[0_0_30px_rgba(255,255,255,0.04)]">
-                {/* Reactive speech waveform bars */}
-                <div className="flex items-center gap-1 h-14">
-                  {needleHeights.map((h, idx) => (
-                    <motion.div
-                      key={idx}
-                      className="w-1 rounded-full bg-gradient-to-t from-[#E5484D] to-white/90"
-                      animate={{ height: `${h}px` }}
-                      transition={{ duration: 0.1 }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <p className="text-xs font-mono text-[#F2F2F2] mt-4 tracking-wider uppercase">
-                Speaking
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Dynamic Action Controls */}
-      <div className="space-y-3">
-        {state === 'idle' ? (
-          <>
-            <button
-              onClick={startCall}
-              className="w-full py-2.5 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.16] text-[#F2F2F2] text-xs font-medium font-sans flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-[#E5484D]"
-              >
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" x2="12" y1="19" y2="22" />
-              </svg>
-              <span>Talk to DevDex</span>
-            </button>
-
-            <p className="text-[11px] font-mono text-[#55585F] text-center">
-              Projects · Skills · Experience
-            </p>
-          </>
-        ) : (
-          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#111214] border border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] animate-ping" />
-              <span className="text-xs font-mono text-[#F2F2F2]">
-                {formatTime(timer)}
-              </span>
-            </div>
-
-            <button
-              onClick={endCall}
-              className="text-xs font-mono text-[#E5484D] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <span className="w-2 h-2 bg-[#E5484D] rounded-sm" />
-              <span>End</span>
-            </button>
-          </div>
-        )}
-
-        {/* Transcript Drawer Toggle (Hidden by default) */}
-        <div className="pt-2 border-t border-white/[0.04] flex flex-col items-center">
-          <button
-            onClick={() => setShowTranscript((s) => !s)}
-            className="text-[10px] font-mono text-[#55585F] hover:text-[#8B8D93] transition-colors cursor-pointer"
+      <div className="space-y-4">
+        {/* AI Avatar — geometric, not cute */}
+        <div className="flex items-start gap-3">
+          <div
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center relative"
+            style={{
+              background: 'linear-gradient(135deg, #161616 0%, #1e1e1e 100%)',
+              border: '1px solid rgba(255,255,255,0.04)',
+            }}
           >
-            {showTranscript ? 'Hide transcript' : 'Show transcript'}
-          </button>
-
-          <AnimatePresence>
-            {showTranscript && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden w-full pt-2"
-              >
-                <div className="p-2.5 rounded bg-[#111214] border border-white/[0.06] text-[11px] font-mono text-[#8B8D93] leading-relaxed">
-                  <p className="text-white/80 font-medium">DevDex:</p>
-                  <p className="mt-0.5">
-                    &ldquo;Hello! You&apos;re connected to Sajal&apos;s DevDex voice console. Speak naturally to ask about his work on Pairfect, Thinkfolio, CampusConnect, or his engineering stack.&rdquo;
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Live Status Indicator */}
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                state === 'idle'
-                  ? 'bg-[#20B486]'
-                  : state === 'connecting'
-                  ? 'bg-[#8B8D93]'
-                  : 'bg-[#E5484D]'
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              className={`transition-all duration-500 ${
+                agentState === 'idle' ? 'opacity-40' : 'opacity-80'
               }`}
-            />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#55585F]">
-              {state === 'idle'
-                ? 'Ready'
-                : state === 'connecting'
-                ? 'Connecting'
-                : state === 'listening'
-                ? 'Listening'
-                : state === 'thinking'
-                ? 'Thinking'
-                : 'Speaking'}
-            </span>
+            >
+              <path
+                d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
+                stroke="#e85d4a"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                fill={agentState === 'speaking' ? 'rgba(232,93,74,0.15)' : 'none'}
+              />
+            </svg>
           </div>
 
-          <span className="text-[10px] font-mono text-[#55585F]">
-            WebRTC Voice
+          {showSummary ? (
+            <motion.div
+              key="summary"
+              role="status"
+              aria-live="polite"
+              className="relative flex-1 rounded-xl border border-white/[0.08] bg-[#151515] px-3 py-2.5 text-[11px] leading-[1.6] text-gray-300 before:absolute before:-left-1 before:top-3 before:h-2 before:w-2 before:rotate-45 before:border-b before:border-l before:border-white/[0.08] before:bg-[#151515]"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              {speechError ? (
+                <span className="text-gray-500">{speechError}</span>
+              ) : (
+                <>
+                  <span className="mb-1 block font-mono text-[8px] uppercase tracking-[0.15em] text-[#e85d4a]">
+                    Meet {developerName}
+                  </span>
+                  {summary.slice(0, spokenCharacters)}
+                  {agentState === 'speaking' && (
+                    <span aria-hidden="true" className="ml-px inline-block h-3 w-px animate-pulse bg-[#e85d4a] align-middle" />
+                  )}
+                </>
+              )}
+            </motion.div>
+          ) : (
+            <div className="flex-1 pt-0.5">
+              {greetingLines.map((line, index) => (
+                <motion.p
+                  key={index}
+                  className={`text-[13px] leading-[1.6] ${
+                    line === '' ? 'h-3' : 'text-gray-400'
+                  }`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: line === '' ? 0 : 1, y: 0 }}
+                  transition={{ delay: 0.3 + index * 0.15, duration: 0.4 }}
+                >
+                  {line}
+                </motion.p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Waveform */}
+        <div className="flex items-end h-5 gap-[2px] px-1">
+          {barHeights.map((val, i) => {
+            const config = getBarConfig(val);
+            return (
+              <div
+                key={i}
+                className="flex-1 rounded-full transition-all"
+                style={{
+                  height: `${config.height}px`,
+                  backgroundColor: '#e85d4a',
+                  opacity: config.opacity,
+                  transitionDuration: agentState === 'speaking' ? '100ms' : '400ms',
+                  transitionTimingFunction: 'ease-out',
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Control */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleSpeech}
+            aria-pressed={agentState === 'speaking' || agentState === 'thinking'}
+            className="font-mono text-[9px] uppercase tracking-[0.15em] px-3 py-1.5 border border-white/[0.06] rounded-md hover:border-white/[0.12] hover:bg-white/[0.02] text-gray-500 hover:text-gray-300 transition-all duration-200 cursor-pointer"
+          >
+            {agentState === 'speaking' || agentState === 'thinking'
+              ? 'Stop playback'
+              : showSummary
+                ? 'Listen again'
+                : 'Tap to listen'}
+          </button>
+          <span className="font-mono text-[8px] text-gray-700 tracking-wider uppercase">
+            {agentState}
           </span>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }
