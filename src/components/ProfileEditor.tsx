@@ -66,7 +66,7 @@ function createInitialForm({ initialProfile, accountName, accountEmail }: Profil
     projects: initialProfile?.projects ?? [],
     experience: initialProfile?.experience ?? [],
     education: initialProfile?.education ?? [],
-    is_published: initialProfile?.is_published ?? true,
+    is_published: initialProfile?.is_published ?? false,
   };
 }
 
@@ -174,6 +174,7 @@ export default function ProfileEditor(props: ProfileEditorProps) {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   function updateField<K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -289,6 +290,28 @@ export default function ProfileEditor(props: ProfileEditorProps) {
     router.replace('/');
   }
 
+  async function handleDeleteAccount() {
+    if (!window.confirm('Permanently delete your DevDex account and profile? This cannot be undone.')) {
+      return;
+    }
+
+    setError('');
+    setIsDeletingAccount(true);
+
+    try {
+      const response = await fetch('/api/account', { method: 'DELETE' });
+      if (!response.ok) {
+        const result: { error?: string } = await response.json();
+        throw new Error(result.error ?? 'Unable to delete your account. Please try again.');
+      }
+
+      router.replace('/');
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete your account. Please try again.');
+      setIsDeletingAccount(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#0a0a0a] px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
@@ -301,7 +324,7 @@ export default function ProfileEditor(props: ProfileEditorProps) {
             <button
               type="button"
               onClick={handleSignOut}
-              disabled={isSigningOut}
+              disabled={isSigningOut || isDeletingAccount}
               className="text-xs text-gray-400 transition hover:text-white disabled:opacity-50"
             >
               {isSigningOut ? 'Signing out…' : 'Sign out'}
@@ -486,6 +509,21 @@ export default function ProfileEditor(props: ProfileEditorProps) {
             </div>
           </section>
         )}
+
+        <section className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/[0.03] p-5 sm:p-7">
+          <h2 className="text-base font-semibold text-white">Delete account</h2>
+          <p className="mt-2 text-sm leading-6 text-gray-500">
+            Permanently delete your account and profile, including any published portfolio. This cannot be undone.
+          </p>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={isDeletingAccount || isSaving || isSigningOut}
+            className="mt-5 rounded-lg border border-red-500/30 px-4 py-2.5 text-xs font-medium text-red-300 transition hover:border-red-400/60 hover:text-red-200 disabled:cursor-wait disabled:opacity-50"
+          >
+            {isDeletingAccount ? 'DELETING ACCOUNT…' : 'DELETE ACCOUNT'}
+          </button>
+        </section>
       </div>
     </main>
   );

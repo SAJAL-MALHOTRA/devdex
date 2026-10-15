@@ -16,12 +16,10 @@ const STATUS_MESSAGES = [
   'ANALYZING STACK',
 ];
 
-export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
+function ScanStatus({ onScanComplete }: { onScanComplete?: () => void }) {
   const [currentMessage, setCurrentMessage] = useState(0);
 
   useEffect(() => {
-    if (!isActive) return;
-
     const interval = setInterval(() => {
       setCurrentMessage((prev) => {
         if (prev >= STATUS_MESSAGES.length - 1) {
@@ -34,14 +32,29 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isActive, onScanComplete]);
+  }, [onScanComplete]);
 
-  useEffect(() => {
-    if (!isActive) {
-      setCurrentMessage(0);
-    }
-  }, [isActive]);
+  return (
+    <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+      <div className="h-4 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={currentMessage}
+            variants={statusTextVariants}
+            initial="enter"
+            animate="visible"
+            exit="exit"
+            className="font-mono text-[10px] tracking-[0.2em] uppercase text-gray-500"
+          >
+            {STATUS_MESSAGES[currentMessage]}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
 
+export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center">
       {/* Scanner ring */}
@@ -153,24 +166,7 @@ export default function Scanner({ isActive, onScanComplete }: ScannerProps) {
       />
 
       {/* Status text */}
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
-        <div className="h-4 overflow-hidden">
-          <AnimatePresence mode="wait">
-            {isActive && (
-              <motion.p
-                key={currentMessage}
-                variants={statusTextVariants}
-                initial="enter"
-                animate="visible"
-                exit="exit"
-                className="font-mono text-[10px] tracking-[0.2em] uppercase text-gray-500"
-              >
-                {STATUS_MESSAGES[currentMessage]}
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+      {isActive && <ScanStatus onScanComplete={onScanComplete} />}
     </div>
   );
 }

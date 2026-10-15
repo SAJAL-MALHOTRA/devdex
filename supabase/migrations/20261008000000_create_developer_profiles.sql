@@ -16,7 +16,7 @@ create table public.developer_profiles (
   projects jsonb not null default '[]',
   experience jsonb not null default '[]',
   education jsonb not null default '[]',
-  is_published boolean not null default true,
+  is_published boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

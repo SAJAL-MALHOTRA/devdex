@@ -24,8 +24,11 @@ DevDex uses Supabase Auth and Postgres for developer accounts and profiles.
 2. Add the project URL and anon key to `.env.local`. Set `NEXT_PUBLIC_SITE_URL`
    to your deployed app URL (for local development, use
    `http://localhost:3000`).
-3. Run [`supabase/migrations/20261008000000_create_developer_profiles.sql`](./supabase/migrations/20261008000000_create_developer_profiles.sql)
-   in the Supabase SQL Editor.
+   Set `SUPABASE_SERVICE_ROLE_KEY` to your Supabase service-role key for the
+   account deletion endpoint. This is a server-only secret: do not prefix it
+   with `NEXT_PUBLIC_` or expose it to the browser.
+3. Run the SQL migrations in `supabase/migrations/` in timestamp order in the
+   Supabase SQL Editor.
 4. In Supabase Authentication settings, enable email/password sign-in and allow
    `http://localhost:3000/auth/callback` and your deployed
    `<site-url>/auth/callback` as redirect URLs for email confirmation.
